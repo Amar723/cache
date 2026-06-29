@@ -1,0 +1,49 @@
+<!--
+  Cache — Android native manifest additions.
+
+  Merge these into android/app/src/main/AndroidManifest.xml. They cover:
+    - Permissions for location (foreground + background) and notifications
+    - Google Maps API key meta-data
+    - The share-sheet intent filter so Cache appears as a share target
+    - singleTask launch mode so an in-app share reuses the running task
+
+  Placeholders ${...} are resolved from android/gradle.properties or you can
+  hard-code them; the Maps key MUST be a literal string in meta-data.
+-->
+
+<!-- 1) Permissions — place these as children of <manifest>, before <application>. -->
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<!-- Background location is required for the 15-min proximity check while the app is not foregrounded. -->
+<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+<!-- Android 13+ notification permission. -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<!-- Lets background-fetch survive reboot (startOnBoot). -->
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+<!--
+  2) Inside <application>, add the Google Maps key.
+     Replace the value with your GOOGLE_MAPS_API_KEY.
+-->
+<meta-data
+  android:name="com.google.android.geo.API_KEY"
+  android:value="YOUR_GOOGLE_MAPS_API_KEY" />
+
+<!--
+  3) On the existing <activity android:name=".MainActivity">:
+       - set android:launchMode="singleTask"
+       - add this intent-filter so Cache receives shared text/links.
+     MainActivity rewrites the delivered share into cache://share?url=... so
+     React Native's Linking API can route it through src/lib/share.ts.
+-->
+<!--  <activity
+        android:name=".MainActivity"
+        android:launchMode="singleTask"
+        ...>
+-->
+<intent-filter>
+  <action android:name="android.intent.action.SEND" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <data android:mimeType="text/plain" />
+</intent-filter>

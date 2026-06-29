@@ -60,6 +60,52 @@ export async function fetchTikTokThumbnail(
 }
 
 /**
+ * Fetch the thumbnail for a shared Instagram Reel/post URL, via the
+ * `instagram-oembed` edge function (Instagram's oEmbed needs a Meta access
+ * token, so the client never calls Meta directly — see that function for why).
+ *
+ * Same never-throw contract as `fetchTikTokThumbnail`: any failure returns
+ * `{thumbnail_url: null}` so the form falls back to the plain placeholder.
+ */
+export async function fetchInstagramThumbnail(
+  videoUrl: string,
+): Promise<TikTokOEmbed> {
+  const empty: TikTokOEmbed = {
+    thumbnail_url: null,
+    title: null,
+    author_name: null,
+  };
+
+  try {
+    // Lazy require: `supabase.ts` pulls in RN-native deps (AsyncStorage, the
+    // URL polyfill) that Jest can't transform, which would break this file's
+    // pure URL-matching functions (isTikTokUrl, extractUrl, ...) under test.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const {supabase} = require('./supabase') as typeof import('./supabase');
+    const {data, error} = await supabase.functions.invoke('instagram-oembed', {
+      body: {url: videoUrl},
+    });
+
+    if (error || !data) {
+      return empty;
+    }
+
+    const json = data as Partial<TikTokOEmbed>;
+    return {
+      thumbnail_url:
+        typeof json.thumbnail_url === 'string' && json.thumbnail_url.length > 0
+          ? json.thumbnail_url
+          : null,
+      title: typeof json.title === 'string' ? json.title : null,
+      author_name:
+        typeof json.author_name === 'string' ? json.author_name : null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+/**
  * Pull the first http(s) URL out of arbitrary shared text. Share sheets often
  * deliver a caption like "Check this out https://vm.tiktok.com/abc/" rather
  * than a bare URL, so we extract it defensively.
@@ -73,12 +119,22 @@ export function extractUrl(shared: string | null | undefined): string | null {
 }
 
 /**
- * True only for TikTok links. TikTok is the one host with a tokenless oEmbed
- * endpoint, so this gates the thumbnail fetch — Instagram has no equivalent.
- * Covers the short-link domains share sheets emit (vm./vt.tiktok.com).
+ * True only for TikTok links. TikTok exposes a tokenless oEmbed endpoint, so
+ * these go straight to `fetchTikTokThumbnail`. Covers the short-link domains
+ * share sheets emit (vm./vt.tiktok.com).
  */
 export function isTikTokUrl(url: string): boolean {
   return /tiktok\.com/i.test(url);
+}
+
+/**
+ * True for Instagram Reel/post links. Instagram's oEmbed endpoint requires a
+ * Meta access token, so these route through `fetchInstagramThumbnail` (which
+ * proxies to the `instagram-oembed` edge function) rather than calling Meta
+ * directly from the client.
+ */
+export function isInstagramUrl(url: string): boolean {
+  return /instagr\.am|instagram\.com\/(?:reel|reels|share|p)\//i.test(url);
 }
 
 /**
@@ -87,9 +143,7 @@ export function isTikTokUrl(url: string): boolean {
  * pass them (vm.tiktok.com, instagr.am, instagram.com/share/…).
  */
 export function isSupportedVideoUrl(url: string): boolean {
-  return /tiktok\.com|instagr\.am|instagram\.com\/(?:reel|reels|share|p)\//i.test(
-    url,
-  );
+  return isTikTokUrl(url) || isInstagramUrl(url);
 }
 
 /**

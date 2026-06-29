@@ -2,7 +2,12 @@ import {useEffect, useRef, useState} from 'react';
 
 import {supabase} from '../lib/supabase';
 import {createStore} from '../lib/store';
-import {fetchTikTokThumbnail, isTikTokUrl} from '../lib/tiktok';
+import {
+  fetchInstagramThumbnail,
+  fetchTikTokThumbnail,
+  isInstagramUrl,
+  isTikTokUrl,
+} from '../lib/tiktok';
 import {currentUserId} from './useAuth';
 import type {StashInsert} from '../lib/database.types';
 import type {Stash, StashDraft} from '../types';
@@ -148,17 +153,23 @@ export async function deleteStash(stashId: string): Promise<void> {
 }
 
 /**
- * TikTok's oEmbed thumbnail is a signed CDN URL that expires after a while,
- * so a pin saved in the past can end up with a dead `thumbnail_url`. Called
- * when an <Image> fails to load; re-fetches a fresh URL from oEmbed (keyed
- * off the permanent `tiktok_url`) and persists it so future loads succeed.
+ * Both TikTok's and Instagram's oEmbed thumbnails are signed CDN URLs that
+ * expire after a while, so a pin saved in the past can end up with a dead
+ * `thumbnail_url`. Called when an <Image> fails to load; re-fetches a fresh
+ * URL from oEmbed (keyed off the permanent `tiktok_url`) and persists it so
+ * future loads succeed.
  */
 export async function refreshThumbnail(stash: Stash): Promise<string | null> {
-  if (!isTikTokUrl(stash.tiktok_url)) {
+  const fetchThumbnail = isTikTokUrl(stash.tiktok_url)
+    ? fetchTikTokThumbnail
+    : isInstagramUrl(stash.tiktok_url)
+    ? fetchInstagramThumbnail
+    : null;
+  if (!fetchThumbnail) {
     return null;
   }
 
-  const {thumbnail_url} = await fetchTikTokThumbnail(stash.tiktok_url);
+  const {thumbnail_url} = await fetchThumbnail(stash.tiktok_url);
   if (!thumbnail_url) {
     return null;
   }

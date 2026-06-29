@@ -18,7 +18,12 @@ import {
 
 import {ENV} from '../lib/config';
 import {colors, fonts, radius, spacing} from '../lib/theme';
-import {fetchTikTokThumbnail, isTikTokUrl} from '../lib/tiktok';
+import {
+  fetchInstagramThumbnail,
+  fetchTikTokThumbnail,
+  isInstagramUrl,
+  isTikTokUrl,
+} from '../lib/tiktok';
 import {loadLastLocation} from '../lib/lastLocation';
 import type {LatLng} from '../lib/distance';
 import {createStash, updateStash, useStashes} from '../hooks/useStashes';
@@ -154,9 +159,14 @@ export function AddStashForm({
       return;
     }
 
-    // Only TikTok exposes a tokenless oEmbed thumbnail. Instagram Reels (and
-    // anything else) go straight to the placeholder — no wasted request.
-    if (!isTikTokUrl(trimmed)) {
+    // TikTok and Instagram are the only hosts we can fetch a thumbnail for.
+    // Anything else goes straight to the placeholder — no wasted request.
+    const fetchThumbnail = isTikTokUrl(trimmed)
+      ? fetchTikTokThumbnail
+      : isInstagramUrl(trimmed)
+      ? fetchInstagramThumbnail
+      : null;
+    if (!fetchThumbnail) {
       setThumbnailUrl(null);
       setThumbLoading(false);
       return;
@@ -165,7 +175,7 @@ export function AddStashForm({
     let active = true;
     setThumbLoading(true);
     const handle = setTimeout(() => {
-      fetchTikTokThumbnail(trimmed).then(result => {
+      fetchThumbnail(trimmed).then(result => {
         if (active) {
           setThumbnailUrl(result.thumbnail_url);
           setThumbLoading(false);

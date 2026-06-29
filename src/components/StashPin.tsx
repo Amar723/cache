@@ -16,8 +16,8 @@ interface StashPinProps {
 
 /**
  * A custom map marker: the TikTok thumbnail as a small rounded square.
- *  - Unvisited → full opacity.
- *  - Visited   → 0.5 opacity with a ✓ badge in the bottom-right corner.
+ *  - Unvisited → neutral border.
+ *  - Visited   → green border with a ✓ badge in the bottom-right corner.
  *
  * `tracksViewChanges` is expensive to leave on, but on iOS the marker image is
  * blank if we disable it before the thumbnail finishes loading. We therefore
@@ -42,7 +42,7 @@ export function StashPin({
         Platform.OS === 'ios' || friendCount > 0 ? !imageSettled : false
       }
       anchor={{x: 0.5, y: 0.5}}>
-      <View style={[styles.pin, visited && styles.pinVisited]}>
+      <View style={styles.pin}>
         {friendCount > 0 && (
           <View style={styles.friendBadge}>
             <Icon
@@ -56,7 +56,7 @@ export function StashPin({
             )}
           </View>
         )}
-        <View style={styles.thumbWrap}>
+        <View style={[styles.thumbWrap, visited && styles.thumbWrapVisited]}>
           {uri ? (
             <Image
               source={{uri}}
@@ -97,9 +97,6 @@ const styles = StyleSheet.create({
   pin: {
     alignItems: 'center',
   },
-  pinVisited: {
-    opacity: 0.7,
-  },
   thumbWrap: {
     width: 50,
     height: 50,
@@ -113,6 +110,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     shadowOffset: {width: 0, height: 2},
     elevation: 4,
+  },
+  thumbWrapVisited: {
+    borderColor: colors.success,
   },
   thumb: {
     width: '100%',
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     borderColor: colors.background,
   },
   tailVisited: {
-    backgroundColor: colors.background,
+    borderColor: colors.success,
   },
   badge: {
     position: 'absolute',

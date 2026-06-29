@@ -3,6 +3,7 @@ import {Image, Platform, StyleSheet, Text, View} from 'react-native';
 import {Marker} from 'react-native-maps';
 
 import {colors} from '../lib/theme';
+import {useThumbnailUri} from '../hooks/useStashes';
 import {CATEGORY_ICON, Icon} from './Icon';
 import type {Stash} from '../types';
 
@@ -28,9 +29,8 @@ export function StashPin({
   friendCount = 0,
 }: StashPinProps): React.JSX.Element {
   const visited = stash.visited_at !== null;
-  const [imageSettled, setImageSettled] = useState(
-    stash.thumbnail_url === null,
-  );
+  const {uri, onError} = useThumbnailUri(stash);
+  const [imageSettled, setImageSettled] = useState(uri === null);
 
   return (
     <Marker
@@ -57,11 +57,12 @@ export function StashPin({
           </View>
         )}
         <View style={styles.thumbWrap}>
-          {stash.thumbnail_url ? (
+          {uri ? (
             <Image
-              source={{uri: stash.thumbnail_url}}
+              source={{uri}}
               style={styles.thumb}
               onLoadEnd={() => setImageSettled(true)}
+              onError={onError}
             />
           ) : (
             <View style={[styles.thumb, styles.thumbFallback]}>

@@ -12,7 +12,7 @@ import {useFocusEffect} from '@react-navigation/native';
 
 import {colors, elevation, radius, spacing} from '../lib/theme';
 import {formatDate} from '../lib/format';
-import {refreshStashes, useStashes} from '../hooks/useStashes';
+import {refreshStashes, useStashes, useThumbnailUri} from '../hooks/useStashes';
 import {navigationRef} from '../navigation/navigationRef';
 import {StashBottomSheet} from '../components/StashBottomSheet';
 import {AppText} from '../components/Themed';
@@ -149,14 +149,15 @@ function StashRow({
   onPress: () => void;
 }): React.JSX.Element {
   const visited = stash.visited_at != null;
+  const {uri, onError} = useThumbnailUri(stash);
   return (
     <Pressable
       onPress={onPress}
       style={({pressed}) => [styles.row, pressed && styles.rowPressed]}
       accessibilityRole="button">
       <View style={styles.thumbWrap}>
-        {stash.thumbnail_url ? (
-          <Image source={{uri: stash.thumbnail_url}} style={styles.thumb} />
+        {uri ? (
+          <Image source={{uri}} style={styles.thumb} onError={onError} />
         ) : (
           <View style={[styles.thumb, styles.thumbFallback]}>
             <Icon

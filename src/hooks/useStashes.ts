@@ -1,5 +1,8 @@
+import {useEffect, useRef, useState} from 'react';
+
 import {supabase} from '../lib/supabase';
 import {createStore} from '../lib/store';
+import {fetchTikTokThumbnail, isTikTokUrl} from '../lib/tiktok';
 import {currentUserId} from './useAuth';
 import type {StashInsert} from '../lib/database.types';
 import type {Stash, StashDraft} from '../types';
@@ -142,6 +145,69 @@ export async function deleteStash(stashId: string): Promise<void> {
   store.setState(prev => ({
     stashes: prev.stashes.filter(s => s.id !== stashId),
   }));
+}
+
+/**
+ * TikTok's oEmbed thumbnail is a signed CDN URL that expires after a while,
+ * so a pin saved in the past can end up with a dead `thumbnail_url`. Called
+ * when an <Image> fails to load; re-fetches a fresh URL from oEmbed (keyed
+ * off the permanent `tiktok_url`) and persists it so future loads succeed.
+ */
+export async function refreshThumbnail(stash: Stash): Promise<string | null> {
+  if (!isTikTokUrl(stash.tiktok_url)) {
+    return null;
+  }
+
+  const {thumbnail_url} = await fetchTikTokThumbnail(stash.tiktok_url);
+  if (!thumbnail_url) {
+    return null;
+  }
+
+  const {data, error} = await supabase
+    .from('stashes')
+    .update({thumbnail_url})
+    .eq('id', stash.id)
+    .select()
+    .single();
+
+  if (error) {
+    return thumbnail_url;
+  }
+
+  const updated = data as Stash;
+  store.setState(prev => ({
+    stashes: prev.stashes.map(s => (s.id === stash.id ? updated : s)),
+  }));
+  return thumbnail_url;
+}
+
+/**
+ * The URI a thumbnail <Image> should render, with one automatic retry: if
+ * the stored URL fails to load, fetch a fresh one and persist it. Shared by
+ * every place a stash thumbnail is rendered (map pin, list row, detail sheet).
+ */
+export function useThumbnailUri(stash: Stash | null): {
+  uri: string | null;
+  onError: () => void;
+} {
+  const [uri, setUri] = useState<string | null>(stash?.thumbnail_url ?? null);
+  const retried = useRef(false);
+
+  useEffect(() => {
+    setUri(stash?.thumbnail_url ?? null);
+    retried.current = false;
+  }, [stash?.thumbnail_url]);
+
+  const onError = () => {
+    if (retried.current || !stash) {
+      setUri(null);
+      return;
+    }
+    retried.current = true;
+    refreshThumbnail(stash).then(fresh => setUri(fresh));
+  };
+
+  return {uri, onError};
 }
 
 /** Mark a stash visited (idempotent). Updates local state in place. */

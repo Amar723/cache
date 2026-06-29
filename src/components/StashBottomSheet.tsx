@@ -9,7 +9,7 @@ import BottomSheet, {
 import {colors, radius, spacing} from '../lib/theme';
 import {formatDate} from '../lib/format';
 import {openVideo} from '../lib/tiktok';
-import {useStashes} from '../hooks/useStashes';
+import {useStashes, useThumbnailUri} from '../hooks/useStashes';
 import {useStashOverlap} from '../hooks/useOverlaps';
 import {friendLabel} from '../lib/overlap';
 import {navigationRef} from '../navigation/navigationRef';
@@ -38,6 +38,7 @@ export function StashBottomSheet({
   const sheetRef = useRef<BottomSheet>(null);
   const {markVisited, deleteStash} = useStashes();
   const alsoSaved = useStashOverlap(stash?.id ?? null);
+  const {uri: thumbUri, onError: handleThumbError} = useThumbnailUri(stash);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -146,11 +147,12 @@ export function StashBottomSheet({
               accessibilityLabel="Open original video"
               onPress={() => openVideo(stash.tiktok_url)}
               style={styles.thumbWrap}>
-              {stash.thumbnail_url ? (
+              {thumbUri ? (
                 <Image
-                  source={{uri: stash.thumbnail_url}}
+                  source={{uri: thumbUri}}
                   style={styles.thumb}
                   resizeMode="cover"
+                  onError={handleThumbError}
                 />
               ) : (
                 <View style={[styles.thumb, styles.thumbFallback]}>

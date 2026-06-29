@@ -2,7 +2,7 @@ import React, {useState} from 'react';
 import {Image, Platform, StyleSheet, Text, View} from 'react-native';
 import {Marker} from 'react-native-maps';
 
-import {colors} from '../lib/theme';
+import {colors, fonts, radius} from '../lib/theme';
 import {useThumbnailUri} from '../hooks/useStashes';
 import {CATEGORY_ICON, Icon} from './Icon';
 import type {Stash} from '../types';
@@ -15,7 +15,8 @@ interface StashPinProps {
 }
 
 /**
- * A custom map marker: the TikTok thumbnail as a small rounded square.
+ * A custom map marker: the TikTok thumbnail as a small rounded square, with
+ * the saved place's name in a small label underneath.
  *  - Unvisited → neutral border.
  *  - Visited   → green border with a ✓ badge in the bottom-right corner.
  *
@@ -41,7 +42,11 @@ export function StashPin({
         // image settles regardless of platform when one is present.
         Platform.OS === 'ios' || friendCount > 0 ? !imageSettled : false
       }
-      anchor={{x: 0.5, y: 0.5}}>
+      // The view now extends well below the thumbnail (tail + name label), so
+      // anchoring at the vertical center (0.5) would drag the thumbnail away
+      // from the actual coordinate. ~0.32 keeps the thumbnail straddling the
+      // pin location, with the tail and label hanging below it as a caption.
+      anchor={{x: 0.5, y: 0.32}}>
       <View style={styles.pin}>
         {friendCount > 0 && (
           <View style={styles.friendBadge}>
@@ -86,6 +91,11 @@ export function StashPin({
         )}
         {/* The little pointer "tail" under the square. */}
         <View style={[styles.tail, visited && styles.tailVisited]} />
+        <View style={styles.labelWrap}>
+          <Text style={styles.label} numberOfLines={1}>
+            {stash.place_name}
+          </Text>
+        </View>
       </View>
     </Marker>
   );
@@ -135,6 +145,22 @@ const styles = StyleSheet.create({
   },
   tailVisited: {
     borderColor: colors.success,
+  },
+  labelWrap: {
+    marginTop: 4,
+    maxWidth: 96,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  label: {
+    fontFamily: fonts.serif,
+    fontSize: 11,
+    color: colors.ink,
+    textAlign: 'center',
   },
   badge: {
     position: 'absolute',

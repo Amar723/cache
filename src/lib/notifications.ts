@@ -6,6 +6,7 @@ import PushNotification, {
 } from 'react-native-push-notification';
 
 import type {Stash} from '../types';
+import {arrivedMessage, nearbyMessage} from './notificationMessages';
 import {requestOpenStash} from '../navigation/navigationRef';
 
 /**
@@ -119,7 +120,7 @@ export async function notifyArrived(stash: Stash): Promise<void> {
   PushNotification.localNotification({
     channelId: CHANNEL_ID,
     title: 'Cache',
-    message: `You made it to ${stash.place_name} 📍 Mark it as visited?`,
+    message: arrivedMessage(stash),
     // RNPN surfaces userInfo on the tapped notification as `userInfo` (iOS) and
     // `data` (Android); the tap handler reads both.
     userInfo: {stashId: stash.id, tier: 'arrived'},
@@ -132,7 +133,7 @@ export async function notifyNearby(stash: Stash): Promise<void> {
   PushNotification.localNotification({
     channelId: CHANNEL_ID,
     title: 'Cache',
-    message: `You cached ${stash.place_name} — today looks like a great day to check it out 🗺️`,
+    message: nearbyMessage(stash),
     userInfo: {stashId: stash.id, tier: 'nearby'},
   });
   await markTier2Fired(stash.id);

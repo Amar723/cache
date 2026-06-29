@@ -1,0 +1,29 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/.gitkeep",
+      "sha1": "39ec471fdd59358234c44e744bfc4c417a15f792"
+    },
+    {
+      "path": "assets/fonts/DMSans-Bold.ttf",
+      "sha1": "4557d84886ecd5043efc79b8f86f0afdf6057241"
+    },
+    {
+      "path": "assets/fonts/DMSans-Medium.ttf",
+      "sha1": "be27e7c46ae3781456a476c472a0944b37e273f1"
+    },
+    {
+      "path": "assets/fonts/DMSans-Regular.ttf",
+      "sha1": "701f0d7a444e7ea7ff51ae5680f4f59021572653"
+    },
+    {
+      "path": "assets/fonts/Lora-Bold.ttf",
+      "sha1": "11917c1e5df40c5dd0e01767d6002ece8cf0ca1d"
+    },
+    {
+      "path": "assets/fonts/Lora-Regular.ttf",
+      "sha1": "0dd6fe0052ce5665e55b5c7bf28d010b2ef6d038"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+Place the following TTF files here, then run `npx react-native-asset`:
+
+  DMSans-Regular.ttf
+  DMSans-Medium.ttf
+  DMSans-Bold.ttf
+  Lora-Regular.ttf
+  Lora-Bold.ttf
+
+DM Sans:  https://fonts.google.com/specimen/DM+Sans
+Lora:     https://fonts.google.com/specimen/Lora
+
+The font family names referenced in code (src/lib/theme.ts) match the
+PostScript names above. On iOS, confirm the names with Font Book if a glyph
+renders in the system font instead of the bundled face.

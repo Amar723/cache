@@ -1,10 +1,10 @@
 # Terms of Service
 
 **App name:** Cache
-**Operated by:** [LEGAL ENTITY NAME — e.g., your name or company LLC] ("**Cache**," "**we**," "**us**," or "**our**")
-**Contact:** [SUPPORT EMAIL]
-**Effective date:** [DATE]
-**Last updated:** [DATE]
+**Operated by:** Amarprit Singh
+**Contact:** goldenavenuesoftware@gmail.com
+**Effective date:** 03/07/2026
+**Last updated:** 03/07/2026
 
 Please read these Terms of Service ("**Terms**") carefully. They form a binding
 agreement between you and Cache and govern your access to and use of the Cache
@@ -227,6 +227,4 @@ located in [JURISDICTION], unless applicable law requires otherwise.
 
 Questions about these Terms? Contact us at:
 
-**[LEGAL ENTITY NAME]**
-Email: [SUPPORT EMAIL]
-[MAILING ADDRESS, if required by app stores or platforms]
+Email: goldenavenuesoftware@gmail.com

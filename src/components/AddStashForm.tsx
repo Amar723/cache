@@ -19,12 +19,15 @@ import {
 import {ENV} from '../lib/config';
 import {colors, fonts, radius, spacing} from '../lib/theme';
 import {
+  fetchInstagramLocation,
   fetchInstagramThumbnail,
+  fetchTikTokLocation,
   fetchTikTokThumbnail,
   isInstagramUrl,
   isTikTokUrl,
 } from '../lib/tiktok';
 import {loadLastLocation} from '../lib/lastLocation';
+import {resolveDetectedPlace, type PlaceSelection} from '../lib/places';
 import type {LatLng} from '../lib/distance';
 import {createStash, updateStash, useStashes} from '../hooks/useStashes';
 import {
@@ -50,14 +53,6 @@ interface AddStashFormProps {
    */
   editStash?: Stash | null;
   onSubmitted: () => void;
-}
-
-interface PlaceSelection {
-  placeId: string | null;
-  address: string;
-  lat: number;
-  lng: number;
-  openingHours: OpeningHours | null;
 }
 
 /**
@@ -137,12 +132,20 @@ export function AddStashForm({
   // in-memory store — no API/DB call).
   const [duplicateName, setDuplicateName] = useState<string | null>(null);
 
+  // True once `place` was filled in automatically from a location tag found
+  // on the video, rather than a manual search — drives the "detected from
+  // video" caption. Cleared the moment the user picks a place themselves.
+  const [autoDetected, setAutoDetected] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // In edit mode we already have a thumbnail and don't want a flaky oEmbed call
   // to wipe it on mount — only refetch once the user actually changes the URL.
   const skipNextFetch = useRef(editing);
+  // Same idea for location detection: editing already has a place, so don't
+  // let a stale/different tag on the video overwrite it on mount.
+  const skipNextLocationFetch = useRef(editing);
 
   // Fetch the oEmbed thumbnail for the current URL, debounced so manual typing
   // doesn't hammer the endpoint. The share path lands here immediately with a
@@ -189,6 +192,55 @@ export function AddStashForm({
     };
   }, [url]);
 
+  // Look for a creator-tagged location on the same URL, same debounce as the
+  // thumbnail fetch above. Only ever fills in a place that's still empty —
+  // it must never clobber a place the user already typed or picked, and a
+  // miss (the common case: no location tag, or the scrape got blocked) just
+  // leaves the manual address search as the only way in, exactly as today.
+  useEffect(() => {
+    if (skipNextLocationFetch.current) {
+      skipNextLocationFetch.current = false;
+      return;
+    }
+    const trimmed = url.trim();
+    if (trimmed.length === 0 || place) {
+      return;
+    }
+
+    const fetchLocation = isTikTokUrl(trimmed)
+      ? fetchTikTokLocation
+      : isInstagramUrl(trimmed)
+      ? fetchInstagramLocation
+      : null;
+    if (!fetchLocation) {
+      return;
+    }
+
+    let active = true;
+    const handle = setTimeout(() => {
+      fetchLocation(trimmed).then(async loc => {
+        if (!active || !loc || place) {
+          return;
+        }
+        const resolved = await resolveDetectedPlace(loc);
+        if (!active || !resolved || place) {
+          return;
+        }
+        setPlace(resolved);
+        setAutoDetected(true);
+        setPlaceName(current =>
+          current.trim().length === 0 ? loc.name : current,
+        );
+      });
+    }, 500);
+
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+
   const handlePlaceSelected = (
     data: GooglePlaceData,
     details: GooglePlaceDetail | null,
@@ -223,6 +275,7 @@ export function AddStashForm({
       lng: location.lng,
       openingHours,
     });
+    setAutoDetected(false);
     setError(null);
   };
 
@@ -384,6 +437,7 @@ export function AddStashForm({
       />
       {place ? (
         <AppText variant="caption" style={styles.selectedAddress}>
+          {autoDetected ? 'Detected from video: ' : ''}
           {place.address}
         </AppText>
       ) : null}

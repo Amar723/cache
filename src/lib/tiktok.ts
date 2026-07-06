@@ -10,6 +10,15 @@ export interface TikTokOEmbed {
   author_name: string | null;
 }
 
+/** A creator-tagged location pulled from a video's page, before it's been
+ * resolved against Google Places. */
+export interface VideoLocation {
+  name: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+}
+
 const OEMBED_ENDPOINT = 'https://www.tiktok.com/oembed';
 
 /**
@@ -59,6 +68,108 @@ export async function fetchTikTokThumbnail(
   }
 }
 
+const TIKTOK_UNIVERSAL_DATA_RE =
+  /<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/;
+
+/**
+ * Best-effort extraction of a creator-tagged location from a TikTok video.
+ * TikTok's oEmbed endpoint (used for the thumbnail above) never includes
+ * location, so this fetches the full video page instead and parses the
+ * embedded `__UNIVERSAL_DATA_FOR_REHYDRATION__` JSON for a POI tag. That
+ * schema is undocumented and TikTok aggressively captcha-walls non-device
+ * traffic, so a null result is expected and common — it means "couldn't
+ * tell", not "no location", and the caller must treat this as a bonus on top
+ * of the manual address search, never a replacement for it.
+ */
+export async function fetchTikTokLocation(
+  videoUrl: string,
+): Promise<VideoLocation | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(videoUrl, {
+      headers: {Accept: 'text/html'},
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      return null;
+    }
+
+    const html = await res.text();
+    const match = html.match(TIKTOK_UNIVERSAL_DATA_RE);
+    if (!match) {
+      return null;
+    }
+
+    const data = JSON.parse(match[1]);
+    const item =
+      data?.__DEFAULT_SCOPE__?.['webapp.video-detail']?.itemInfo?.itemStruct;
+    return item ? findTikTokItemLocation(item) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * TikTok doesn't document the location-tag schema, and we can't probe a
+ * live tagged video from a server-side environment (it gets captcha-walled
+ * before the JSON ever loads). This checks the candidate shapes reported by
+ * the wider scraping community — a top-level `poi` object, or a POI anchor
+ * inside `anchors` with its details JSON-encoded in `extraInfo` — and gives
+ * up rather than guess if neither matches.
+ */
+export function findTikTokItemLocation(item: unknown): VideoLocation | null {
+  const fromPoi = toVideoLocation((item as {poi?: unknown})?.poi);
+  if (fromPoi) {
+    return fromPoi;
+  }
+
+  const anchors = (item as {anchors?: unknown[]})?.anchors;
+  if (Array.isArray(anchors)) {
+    for (const anchor of anchors) {
+      const extraInfo = (anchor as {extraInfo?: unknown})?.extraInfo;
+      if (typeof extraInfo === 'string') {
+        try {
+          const fromAnchor = toVideoLocation(JSON.parse(extraInfo));
+          if (fromAnchor) {
+            return fromAnchor;
+          }
+        } catch {
+          // Not a POI-shaped anchor; keep looking.
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function toVideoLocation(obj: unknown): VideoLocation | null {
+  if (!obj || typeof obj !== 'object') {
+    return null;
+  }
+  const o = obj as Record<string, unknown>;
+  const name = o.poiName ?? o.name ?? o.title;
+  const lat = o.latitude ?? o.lat;
+  const lng = o.longitude ?? o.lng ?? o.lon;
+  if (
+    typeof name !== 'string' ||
+    name.length === 0 ||
+    typeof lat !== 'number' ||
+    typeof lng !== 'number'
+  ) {
+    return null;
+  }
+  const address = o.address ?? o.poiAddress;
+  return {
+    name,
+    address: typeof address === 'string' ? address : null,
+    lat,
+    lng,
+  };
+}
+
 /**
  * Fetch the thumbnail for a shared Instagram Reel/post URL, via the
  * `instagram-oembed` edge function (Instagram's oEmbed needs a Meta access
@@ -80,7 +191,7 @@ export async function fetchInstagramThumbnail(
     // Lazy require: `supabase.ts` pulls in RN-native deps (AsyncStorage, the
     // URL polyfill) that Jest can't transform, which would break this file's
     // pure URL-matching functions (isTikTokUrl, extractUrl, ...) under test.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     const {supabase} = require('./supabase') as typeof import('./supabase');
     const {data, error} = await supabase.functions.invoke('instagram-oembed', {
       body: {url: videoUrl},
@@ -102,6 +213,76 @@ export async function fetchInstagramThumbnail(
     };
   } catch {
     return empty;
+  }
+}
+
+// Instagram's web app's own public client id, sent by every logged-out
+// visitor to instagram.com — not a secret, just an identifier the GraphQL
+// endpoint requires on the request.
+const IG_APP_ID = '936619743392459';
+// The GraphQL query Instagram's own web client uses to load a single post by
+// shortcode. Undocumented and rotated periodically as an anti-scraping
+// measure (no warning, no deprecation notice) — if Instagram location
+// detection silently stops working, re-discovering this value (via a
+// browser's network tab on an actual post page) is the first thing to check.
+const IG_POST_DOC_ID = '10015901848480474';
+
+export function extractInstagramShortcode(url: string): string | null {
+  const match = url.match(/instagram\.com\/(?:reel|reels|p)\/([^/?#]+)/i);
+  return match ? match[1] : null;
+}
+
+/**
+ * Best-effort extraction of a creator-tagged location from an Instagram
+ * Reel/post, via Instagram's own (undocumented, unofficial) GraphQL endpoint
+ * — there is no oEmbed field or official API for this. Expect this to need
+ * periodic upkeep as Instagram changes `IG_POST_DOC_ID`; until then it
+ * degrades to null exactly like every other lookup in this file, so a break
+ * here never blocks saving a stash.
+ */
+export async function fetchInstagramLocation(
+  videoUrl: string,
+): Promise<VideoLocation | null> {
+  const shortcode = extractInstagramShortcode(videoUrl);
+  if (!shortcode) {
+    return null;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const body = new URLSearchParams({
+      doc_id: IG_POST_DOC_ID,
+      variables: JSON.stringify({shortcode}),
+    });
+    const res = await fetch('https://www.instagram.com/graphql/query/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'x-ig-app-id': IG_APP_ID,
+      },
+      body: body.toString(),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      return null;
+    }
+
+    const json = await res.json();
+    const location = json?.data?.shortcode_media?.location;
+    const name = location?.name;
+    const lat = location?.lat;
+    const lng = location?.lng;
+    if (typeof name !== 'string' || name.length === 0) {
+      return null;
+    }
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+      return null;
+    }
+    return {name, address: null, lat, lng};
+  } catch {
+    return null;
   }
 }
 

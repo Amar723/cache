@@ -1,4 +1,10 @@
-import {extractUrl, isSupportedVideoUrl, isTikTokUrl} from '../tiktok';
+import {
+  extractInstagramShortcode,
+  extractUrl,
+  findTikTokItemLocation,
+  isSupportedVideoUrl,
+  isTikTokUrl,
+} from '../tiktok';
 
 describe('extractUrl', () => {
   it('returns a bare URL unchanged', () => {
@@ -64,5 +70,87 @@ describe('isSupportedVideoUrl', () => {
     expect(isSupportedVideoUrl('https://www.instagram.com/someuser')).toBe(
       false,
     );
+  });
+});
+
+describe('extractInstagramShortcode', () => {
+  it('pulls the shortcode out of reel, reels, and post URLs', () => {
+    expect(
+      extractInstagramShortcode('https://www.instagram.com/reel/Cabc123/'),
+    ).toBe('Cabc123');
+    expect(
+      extractInstagramShortcode('https://www.instagram.com/reels/Cabc123/'),
+    ).toBe('Cabc123');
+    expect(
+      extractInstagramShortcode('https://www.instagram.com/p/Cabc123/'),
+    ).toBe('Cabc123');
+  });
+
+  it('ignores a trailing query string', () => {
+    expect(
+      extractInstagramShortcode(
+        'https://www.instagram.com/reel/Cabc123/?utm_source=ig_web',
+      ),
+    ).toBe('Cabc123');
+  });
+
+  it('returns null for URLs without a shortcode', () => {
+    expect(
+      extractInstagramShortcode('https://www.instagram.com/someuser/'),
+    ).toBeNull();
+    expect(
+      extractInstagramShortcode('https://www.tiktok.com/@u/video/123'),
+    ).toBeNull();
+  });
+});
+
+describe('findTikTokItemLocation', () => {
+  it('reads a top-level poi object', () => {
+    expect(
+      findTikTokItemLocation({
+        poi: {
+          poiName: "Joe's Pizza",
+          address: '7 Carmine St, New York, NY',
+          latitude: 40.7307,
+          longitude: -74.0023,
+        },
+      }),
+    ).toEqual({
+      name: "Joe's Pizza",
+      address: '7 Carmine St, New York, NY',
+      lat: 40.7307,
+      lng: -74.0023,
+    });
+  });
+
+  it('reads a POI anchor with JSON-encoded extraInfo', () => {
+    expect(
+      findTikTokItemLocation({
+        anchors: [
+          {type: 'hashtag', extraInfo: '{"not":"a place"}'},
+          {
+            type: 'poi',
+            extraInfo: JSON.stringify({
+              name: 'Golden Gate Park',
+              lat: 37.7694,
+              lng: -122.4862,
+            }),
+          },
+        ],
+      }),
+    ).toEqual({
+      name: 'Golden Gate Park',
+      address: null,
+      lat: 37.7694,
+      lng: -122.4862,
+    });
+  });
+
+  it('returns null when nothing place-shaped is present', () => {
+    expect(findTikTokItemLocation({})).toBeNull();
+    expect(findTikTokItemLocation({locationCreated: 'US'})).toBeNull();
+    expect(
+      findTikTokItemLocation({anchors: [{type: 'hashtag', extraInfo: '{}'}]}),
+    ).toBeNull();
   });
 });

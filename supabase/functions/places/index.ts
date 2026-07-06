@@ -15,10 +15,14 @@
 
 const GOOGLE_BASE = 'https://maps.googleapis.com/maps/api';
 
-// Only the two endpoints the client actually uses are proxied.
+// Only the endpoints the client actually uses are proxied.
+// `findplacefromtext` resolves a video's detected location (a name + rough
+// lat/lng scraped from TikTok/Instagram) to a real place_id, the same way
+// `autocomplete` resolves a manually typed search.
 const ALLOWED_PATHS = new Set([
   '/place/autocomplete/json',
   '/place/details/json',
+  '/place/findplacefromtext/json',
 ]);
 
 Deno.serve(async (req: Request): Promise<Response> => {

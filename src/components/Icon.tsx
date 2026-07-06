@@ -28,6 +28,7 @@ export type IconName =
   | 'check'
   | 'play'
   | 'locate'
+  | 'directions'
   | 'camera'
   | 'close'
   | 'plus';
@@ -128,6 +129,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <Circle cx={12} cy={12} r={1.5} fill="currentFill" stroke="none" />
     </>
   ),
+  directions: <Polygon points="3 11 22 2 13 21 11 13 3 11" />,
   camera: (
     <>
       <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />

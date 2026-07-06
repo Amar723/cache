@@ -8,6 +8,7 @@ import BottomSheet, {
 
 import {colors, radius, spacing} from '../lib/theme';
 import {formatDate} from '../lib/format';
+import {openDirections} from '../lib/directions';
 import {openVideo} from '../lib/tiktok';
 import {useStashes, useThumbnailUri} from '../hooks/useStashes';
 import {useStashOverlap} from '../hooks/useOverlaps';
@@ -73,6 +74,17 @@ export function StashBottomSheet({
       setSaving(false);
     }
   }, [markVisited, stash]);
+
+  const handleGetDirections = useCallback(() => {
+    if (!stash) {
+      return;
+    }
+    openDirections({
+      lat: stash.lat,
+      lng: stash.lng,
+      label: stash.place_name,
+    });
+  }, [stash]);
 
   const handleEdit = useCallback(() => {
     if (!stash) {
@@ -195,6 +207,17 @@ export function StashBottomSheet({
                 {stash.address}
               </AppText>
             ) : null}
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Get directions"
+              onPress={handleGetDirections}
+              style={styles.directionsRow}>
+              <Icon name="directions" size={16} color={colors.ink} />
+              <AppText variant="bold" style={styles.directionsText}>
+                Get Directions
+              </AppText>
+            </Pressable>
 
             {stash.notes ? (
               <AppText variant="body" style={styles.notes}>
@@ -362,6 +385,15 @@ const styles = StyleSheet.create({
   },
   address: {
     marginTop: spacing.xs,
+  },
+  directionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  directionsText: {
+    color: colors.ink,
   },
   notes: {
     marginTop: spacing.md,

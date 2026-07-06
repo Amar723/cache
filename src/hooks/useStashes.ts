@@ -6,6 +6,7 @@ import {
   fetchInstagramThumbnail,
   fetchTikTokThumbnail,
   isInstagramUrl,
+  isSupportedVideoUrl,
   isTikTokUrl,
 } from '../lib/tiktok';
 import {currentUserId} from './useAuth';
@@ -205,9 +206,21 @@ export function useThumbnailUri(stash: Stash | null): {
   const retried = useRef(false);
 
   useEffect(() => {
-    setUri(stash?.thumbnail_url ?? null);
+    const stored = stash?.thumbnail_url ?? null;
+    setUri(stored);
     retried.current = false;
-  }, [stash?.thumbnail_url]);
+
+    // If the stored URL is null but we have a supported video link, try to
+    // fetch a fresh thumbnail. This self-heals pins saved while the oEmbed
+    // endpoint was broken without requiring the user to re-edit them.
+    if (!stored && stash && isSupportedVideoUrl(stash.tiktok_url)) {
+      refreshThumbnail(stash).then(fresh => {
+        if (fresh) {
+          setUri(fresh);
+        }
+      });
+    }
+  }, [stash?.thumbnail_url, stash?.tiktok_url]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onError = () => {
     if (retried.current || !stash) {

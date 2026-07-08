@@ -2,7 +2,6 @@ import {supabase} from '../lib/supabase';
 import {createStore} from '../lib/store';
 import {currentUserId} from './useAuth';
 import type {
-  ItineraryInsert,
   ItineraryMemberInsert,
   ItineraryMemberStatus,
 } from '../lib/database.types';
@@ -33,12 +32,64 @@ const store = createStore<ItinerariesState>({
 
 /** Everyone in a trip beyond the owner, capped client-side. */
 export const MAX_TRIP_MEMBERS = 20;
+const MAX_TRIP_NAME_LENGTH = 60;
+const TRIP_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TRIP_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+
+function normalizeTripName(name: string): string {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) {
+    throw new Error('Give your trip a name.');
+  }
+  if (trimmed.length > MAX_TRIP_NAME_LENGTH) {
+    throw new Error(
+      `Trip names are capped at ${MAX_TRIP_NAME_LENGTH} characters.`,
+    );
+  }
+  return trimmed;
+}
+
+function normalizeTripDate(date: string, errorMessage: string): string {
+  const trimmed = date.trim();
+  if (!TRIP_DATE_PATTERN.test(trimmed)) {
+    throw new Error(errorMessage);
+  }
+  const year = Number(trimmed.slice(0, 4));
+  const month = Number(trimmed.slice(5, 7));
+  const day = Number(trimmed.slice(8, 10));
+  const valid = new Date(year, month - 1, day);
+  if (
+    valid.getFullYear() !== year ||
+    valid.getMonth() !== month - 1 ||
+    valid.getDate() !== day
+  ) {
+    throw new Error(errorMessage);
+  }
+  return trimmed;
+}
+
+function normalizeTripTime(time: string | null): string | null {
+  if (time === null) {
+    return null;
+  }
+  const trimmed = time.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  if (!TRIP_TIME_PATTERN.test(trimmed)) {
+    throw new Error('Choose a valid trip time.');
+  }
+  return trimmed.length === 5 ? `${trimmed}:00` : trimmed;
+}
 
 /** An itineraries row with the owner + member profiles embedded. */
 interface TripJoinRow {
   id: string;
   owner_id: string;
   name: string;
+  trip_date: string | null;
+  trip_end_date: string | null;
+  trip_time: string | null;
   created_at: string;
   updated_at: string;
   owner: Profile | null;
@@ -70,10 +121,14 @@ export function partitionTrips(
     if (!row.owner) {
       continue; // The owner's profile went missing; skip rather than crash.
     }
+    const tripDate = row.trip_date ?? row.created_at.slice(0, 10);
     const itinerary: Itinerary = {
       id: row.id,
       owner_id: row.owner_id,
       name: row.name,
+      trip_date: tripDate,
+      trip_end_date: row.trip_end_date ?? tripDate,
+      trip_time: row.trip_time,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };
@@ -127,25 +182,39 @@ export function clearItineraries(): void {
 }
 
 /** Create a trip owned by the current user. Returns the new itinerary. */
-export async function createTrip(name: string): Promise<Itinerary> {
+export async function createTrip(
+  name: string,
+  tripDate: string,
+  tripEndDate: string,
+  tripTime: string | null,
+): Promise<Itinerary> {
   const myId = currentUserId();
   if (!myId) {
     throw new Error('You must be signed in.');
   }
-  const trimmed = name.trim();
-  if (trimmed.length === 0) {
-    throw new Error('Give your trip a name.');
+  const trimmed = normalizeTripName(name);
+  const normalizedDate = normalizeTripDate(tripDate, 'Choose a start date.');
+  const normalizedEndDate = normalizeTripDate(
+    tripEndDate,
+    'Choose an end date.',
+  );
+  if (normalizedEndDate < normalizedDate) {
+    throw new Error('End date must be on or after the start date.');
   }
+  const normalizedTime = normalizeTripTime(tripTime);
 
-  const payload: ItineraryInsert = {owner_id: myId, name: trimmed};
-  const {data, error} = await supabase
-    .from('itineraries')
-    .insert(payload)
-    .select()
-    .single();
+  const {data, error} = await supabase.rpc('create_itinerary', {
+    p_name: trimmed,
+    p_trip_date: normalizedDate,
+    p_trip_end_date: normalizedEndDate,
+    p_trip_time: normalizedTime,
+  });
 
   if (error) {
     throw new Error(error.message);
+  }
+  if (!data) {
+    throw new Error('Could not create trip.');
   }
   await refreshItineraries();
   return data as Itinerary;
@@ -156,10 +225,7 @@ export async function renameTrip(
   itineraryId: string,
   name: string,
 ): Promise<void> {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) {
-    throw new Error('Give your trip a name.');
-  }
+  const trimmed = normalizeTripName(name);
   const {error} = await supabase
     .from('itineraries')
     .update({name: trimmed})

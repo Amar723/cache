@@ -106,6 +106,9 @@ export interface ItineraryRow {
   id: string;
   owner_id: string;
   name: string;
+  trip_date: string;
+  trip_end_date: string;
+  trip_time: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -113,6 +116,9 @@ export interface ItineraryRow {
 export type ItineraryInsert = {
   owner_id: string;
   name: string;
+  trip_date: string;
+  trip_end_date: string;
+  trip_time?: string | null;
   id?: string;
 };
 

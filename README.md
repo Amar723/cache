@@ -176,6 +176,8 @@ In the Supabase dashboard:
      per-user write policies.
    - `supabase/friends.sql` — Phase 2: the `friendships` table, its RLS, and the
      policy that lets accepted friends read each other's visible stashes.
+   - `supabase/itineraries.sql` — Phase 3: trips, memberships, trip stashes,
+     and the trip creation RPC.
    - `supabase/account.sql` — the `delete_account()` RPC behind "Delete account".
 2. **Authentication → Providers → Email**: ensure Email is enabled.
 3. **Authentication → Sign In / Providers → Email → "Confirm email"**: turn this

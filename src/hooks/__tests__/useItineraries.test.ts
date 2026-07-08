@@ -1,12 +1,15 @@
-import {inviteToTrip, partitionTrips} from '../useItineraries';
+import {createTrip, inviteToTrip, partitionTrips} from '../useItineraries';
 import {supabase} from '../../lib/supabase';
 import {currentUserId} from '../useAuth';
 import type {Profile} from '../../types';
 
-jest.mock('../../lib/supabase', () => ({supabase: {from: jest.fn()}}));
+jest.mock('../../lib/supabase', () => ({
+  supabase: {from: jest.fn(), rpc: jest.fn()},
+}));
 jest.mock('../useAuth', () => ({currentUserId: jest.fn(() => 'me')}));
 
 const mockFrom = supabase.from as jest.Mock;
+const mockRpc = supabase.rpc as jest.Mock;
 
 function prof(id: string): Profile {
   return {
@@ -33,6 +36,9 @@ function tripRow(overrides: {
     id: 't1',
     owner_id: 'me',
     name: 'Sydney trip',
+    trip_date: '2026-07-12',
+    trip_end_date: '2026-07-15',
+    trip_time: null,
     created_at: '2026-07-01',
     updated_at: '2026-07-01',
     owner: prof('me'),
@@ -121,6 +127,70 @@ describe('partitionTrips', () => {
     expect(trips).toHaveLength(1);
     expect(trips[0].itinerary.id).toBe('ok');
     expect(trips[0].members).toHaveLength(0);
+  });
+});
+
+describe('createTrip', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (currentUserId as jest.Mock).mockReturnValue('me');
+    mockFrom.mockImplementation(() => ({
+      select: jest.fn(() => ({
+        order: jest.fn().mockResolvedValue({data: [], error: null}),
+      })),
+    }));
+  });
+
+  it('creates a trip through the ownership-scoped RPC', async () => {
+    const created = {
+      id: 't1',
+      owner_id: 'me',
+      name: 'Sydney trip',
+      trip_date: '2026-07-12',
+      trip_end_date: '2026-07-15',
+      trip_time: '09:30:00',
+      created_at: '2026-07-01',
+      updated_at: '2026-07-01',
+    };
+    mockRpc.mockResolvedValue({data: created, error: null});
+
+    await expect(
+      createTrip('  Sydney trip  ', '2026-07-12', '2026-07-15', '09:30'),
+    ).resolves.toEqual(created);
+
+    expect(mockRpc).toHaveBeenCalledWith('create_itinerary', {
+      p_name: 'Sydney trip',
+      p_trip_date: '2026-07-12',
+      p_trip_end_date: '2026-07-15',
+      p_trip_time: '09:30:00',
+    });
+  });
+
+  it('rejects invalid trip dates before calling Supabase', async () => {
+    await expect(
+      createTrip('Sydney trip', '2026-02-30', '2026-03-01', null),
+    ).rejects.toThrow('Choose a start date');
+
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('rejects an end date before the start date', async () => {
+    await expect(
+      createTrip('Sydney trip', '2026-07-12', '2026-07-11', null),
+    ).rejects.toThrow('End date must be on or after the start date');
+
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('surfaces RPC errors', async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: {message: 'Not authenticated'},
+    });
+
+    await expect(
+      createTrip('Sydney trip', '2026-07-12', '2026-07-15', null),
+    ).rejects.toThrow('Not authenticated');
   });
 });
 

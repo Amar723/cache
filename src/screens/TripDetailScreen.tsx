@@ -33,6 +33,7 @@ import {refreshItineraries, useTrip} from '../hooks/useItineraries';
 import {
   refreshTripStashes,
   removeEntry,
+  setEntrySchedule,
   useTripEntries,
 } from '../hooks/useTripStashes';
 import {useThumbnailUri} from '../hooks/useStashes';
@@ -138,6 +139,16 @@ export function TripDetailScreen({
 
   const memberCount =
     1 + (trip?.members.filter(m => m.status === 'accepted').length ?? 0);
+  const tripSchedule = trip
+    ? `${formatTripRange(
+        trip.itinerary.trip_date,
+        trip.itinerary.trip_end_date,
+      )}${
+        trip.itinerary.trip_time
+          ? ` · ${formatTripTime(trip.itinerary.trip_time)}`
+          : ''
+      }`
+    : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -174,8 +185,14 @@ export function TripDetailScreen({
             <AppText variant="serif" style={styles.titleText} numberOfLines={1}>
               {trip?.itinerary.name ?? 'Trip'}
             </AppText>
-            <AppText variant="caption">
-              {entries.length} {entries.length === 1 ? 'place' : 'places'}
+            <AppText variant="caption" numberOfLines={1}>
+              {tripSchedule
+                ? `${tripSchedule} · ${entries.length} ${
+                    entries.length === 1 ? 'place' : 'places'
+                  }`
+                : `${entries.length} ${
+                    entries.length === 1 ? 'place' : 'places'
+                  }`}
             </AppText>
           </View>
         </View>
@@ -253,7 +270,18 @@ export function TripDetailScreen({
         itineraryId={pickerOpen ? itineraryId : null}
         onClose={() => setPickerOpen(false)}
       />
-      <DatePickerSheet entry={scheduling} onClose={() => setScheduling(null)} />
+      <DatePickerSheet
+        visible={scheduling !== null}
+        title={scheduling?.stash.place_name ?? ''}
+        date={scheduling?.scheduledDate ?? null}
+        time={scheduling?.scheduledTime ?? null}
+        onSave={(date, time) =>
+          scheduling
+            ? setEntrySchedule(scheduling.entryId, date, time)
+            : undefined
+        }
+        onClose={() => setScheduling(null)}
+      />
       <TripMembersSheet
         trip={membersOpen ? trip : null}
         onClose={() => setMembersOpen(false)}
@@ -384,6 +412,12 @@ function EntryRow({
       </View>
     </Pressable>
   );
+}
+
+function formatTripRange(startDate: string, endDate: string): string {
+  return startDate === endDate
+    ? formatTripDate(startDate)
+    : `${formatTripDate(startDate)} - ${formatTripDate(endDate)}`;
 }
 
 const styles = StyleSheet.create({

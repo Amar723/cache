@@ -8,15 +8,20 @@ import BottomSheet, {
 
 import {colors, radius, spacing} from '../lib/theme';
 import {addMonths, monthMatrix, monthTitle, todayString} from '../lib/calendar';
-import {setEntrySchedule} from '../hooks/useTripStashes';
-import type {TripStashEntry} from '../types';
 import {AppText, PrimaryButton} from './Themed';
 import {Icon} from './Icon';
 
 interface DatePickerSheetProps {
-  /** The entry being scheduled, or null to keep the sheet closed. */
-  entry: TripStashEntry | null;
+  visible: boolean;
+  title: string;
+  date: string | null;
+  time: string | null;
   onClose: () => void;
+  onSave: (date: string | null, time: string | null) => Promise<void> | void;
+  allowClear?: boolean;
+  requireDate?: boolean;
+  showTime?: boolean;
+  errorTitle?: string;
 }
 
 const WEEKDAY_HEADERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -27,8 +32,16 @@ const WEEKDAY_HEADERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
  * destination wall-clock strings, so nothing here touches timezones.
  */
 export function DatePickerSheet({
-  entry,
+  visible,
+  title,
+  date: currentDate,
+  time: currentTime,
   onClose,
+  onSave,
+  allowClear = true,
+  requireDate = false,
+  showTime = true,
+  errorTitle = 'Could not save schedule',
 }: DatePickerSheetProps): React.JSX.Element {
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['72%'], []);
@@ -43,20 +56,20 @@ export function DatePickerSheet({
   const [minute, setMinute] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  // Seed the sheet from the entry each time it opens.
+  // Seed the sheet each time it opens.
   useEffect(() => {
-    if (!entry) {
+    if (!visible) {
       sheetRef.current?.close();
       return;
     }
-    const seedDate = entry.scheduledDate ?? todayString();
+    const seedDate = currentDate ?? todayString();
     setView({
       year: Number(seedDate.slice(0, 4)),
       month: Number(seedDate.slice(5, 7)),
     });
-    setSelectedDate(entry.scheduledDate);
-    if (entry.scheduledTime) {
-      const [h, m] = entry.scheduledTime.split(':').map(Number);
+    setSelectedDate(currentDate ?? (requireDate ? seedDate : null));
+    if (showTime && currentTime) {
+      const [h, m] = currentTime.split(':').map(Number);
       setTimeEnabled(true);
       setHour(Number.isNaN(h) ? 12 : h);
       setMinute(Number.isNaN(m) ? 0 : m);
@@ -66,15 +79,15 @@ export function DatePickerSheet({
       setMinute(0);
     }
     sheetRef.current?.snapToIndex(0);
-  }, [entry]);
+  }, [currentDate, currentTime, requireDate, showTime, visible]);
 
   const handleChange = useCallback(
     (index: number) => {
-      if (index === -1 && entry) {
+      if (index === -1 && visible) {
         onClose();
       }
     },
-    [entry, onClose],
+    [onClose, visible],
   );
 
   const renderBackdrop = useCallback(
@@ -91,16 +104,20 @@ export function DatePickerSheet({
   );
 
   const save = async (date: string | null, time: string | null) => {
-    if (!entry) {
+    if (!visible) {
+      return;
+    }
+    if (requireDate && date === null) {
+      Alert.alert(errorTitle, 'Choose a date.');
       return;
     }
     setSaving(true);
     try {
-      await setEntrySchedule(entry.entryId, date, time);
+      await onSave(date, time);
       onClose();
     } catch (e) {
       Alert.alert(
-        'Could not save schedule',
+        errorTitle,
         e instanceof Error ? e.message : 'Please try again.',
       );
     } finally {
@@ -111,7 +128,7 @@ export function DatePickerSheet({
   const handleDone = () =>
     save(
       selectedDate,
-      selectedDate && timeEnabled
+      selectedDate && showTime && timeEnabled
         ? `${String(hour).padStart(2, '0')}:${String(minute).padStart(
             2,
             '0',
@@ -134,10 +151,10 @@ export function DatePickerSheet({
       handleIndicatorStyle={styles.handle}
       backgroundStyle={styles.sheetBackground}>
       <BottomSheetView style={styles.content}>
-        {entry && (
+        {visible && (
           <>
             <AppText variant="serifTitle" numberOfLines={1}>
-              {entry.stash.place_name}
+              {title}
             </AppText>
 
             {/* Month header */}
@@ -172,7 +189,9 @@ export function DatePickerSheet({
                     <Pressable
                       key={date}
                       onPress={() =>
-                        setSelectedDate(d => (d === date ? null : date))
+                        setSelectedDate(d =>
+                          d === date && !requireDate ? null : date,
+                        )
                       }
                       style={[
                         styles.dayCell,
@@ -197,69 +216,73 @@ export function DatePickerSheet({
               </View>
             ))}
 
-            {/* Time row */}
-            <View style={styles.timeRow}>
-              <Pressable
-                onPress={() => setTimeEnabled(t => !t)}
-                disabled={!selectedDate}
-                style={[
-                  styles.timeToggle,
-                  timeEnabled && selectedDate !== null
-                    ? styles.timeToggleOn
-                    : null,
-                  !selectedDate && styles.timeToggleDisabled,
-                ]}
-                accessibilityRole="switch"
-                accessibilityState={{checked: timeEnabled}}>
-                <Icon
-                  name="clock"
-                  size={16}
-                  color={
-                    timeEnabled && selectedDate ? colors.onAccent : colors.ink
-                  }
-                />
-                <AppText
-                  variant="medium"
-                  style={
-                    timeEnabled && selectedDate
-                      ? styles.timeToggleTextOn
-                      : undefined
-                  }>
-                  {timeEnabled ? 'Time' : 'Add a time'}
-                </AppText>
-              </Pressable>
+            {showTime && (
+              <View style={styles.timeRow}>
+                <Pressable
+                  onPress={() => setTimeEnabled(t => !t)}
+                  disabled={!selectedDate}
+                  style={[
+                    styles.timeToggle,
+                    timeEnabled && selectedDate !== null
+                      ? styles.timeToggleOn
+                      : null,
+                    !selectedDate && styles.timeToggleDisabled,
+                  ]}
+                  accessibilityRole="switch"
+                  accessibilityState={{checked: timeEnabled}}>
+                  <Icon
+                    name="clock"
+                    size={16}
+                    color={
+                      timeEnabled && selectedDate ? colors.onAccent : colors.ink
+                    }
+                  />
+                  <AppText
+                    variant="medium"
+                    style={
+                      timeEnabled && selectedDate
+                        ? styles.timeToggleTextOn
+                        : undefined
+                    }>
+                    {timeEnabled ? 'Time' : 'Add a time'}
+                  </AppText>
+                </Pressable>
 
-              {timeEnabled && selectedDate && (
-                <View style={styles.steppers}>
-                  <Stepper
-                    label={String(hour12)}
-                    onStep={dir => setHour(h => (h + dir + 24) % 24)}
-                  />
-                  <AppText variant="bold">:</AppText>
-                  <Stepper
-                    label={String(minute).padStart(2, '0')}
-                    onStep={dir => setMinute(m => (m + dir * 15 + 60) % 60)}
-                  />
-                  <Pressable
-                    onPress={() => setHour(h => (h + 12) % 24)}
-                    style={styles.ampm}
-                    accessibilityRole="button">
-                    <AppText variant="bold">{hour < 12 ? 'AM' : 'PM'}</AppText>
-                  </Pressable>
-                </View>
-              )}
-            </View>
+                {timeEnabled && selectedDate && (
+                  <View style={styles.steppers}>
+                    <Stepper
+                      label={String(hour12)}
+                      onStep={dir => setHour(h => (h + dir + 24) % 24)}
+                    />
+                    <AppText variant="bold">:</AppText>
+                    <Stepper
+                      label={String(minute).padStart(2, '0')}
+                      onStep={dir => setMinute(m => (m + dir * 15 + 60) % 60)}
+                    />
+                    <Pressable
+                      onPress={() => setHour(h => (h + 12) % 24)}
+                      style={styles.ampm}
+                      accessibilityRole="button">
+                      <AppText variant="bold">
+                        {hour < 12 ? 'AM' : 'PM'}
+                      </AppText>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            )}
 
             <View style={styles.buttons}>
-              {(entry.scheduledDate !== null || selectedDate !== null) && (
-                <PrimaryButton
-                  title="Clear"
-                  variant="secondary"
-                  onPress={() => save(null, null)}
-                  disabled={saving}
-                  style={styles.button}
-                />
-              )}
+              {allowClear &&
+                (currentDate !== null || selectedDate !== null) && (
+                  <PrimaryButton
+                    title="Clear"
+                    variant="secondary"
+                    onPress={() => save(null, null)}
+                    disabled={saving}
+                    style={styles.button}
+                  />
+                )}
               <PrimaryButton
                 title="Done"
                 onPress={handleDone}

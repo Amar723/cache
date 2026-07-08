@@ -16,11 +16,15 @@ import {colors, radius, spacing} from '../lib/theme';
 import {useItineraries} from '../hooks/useItineraries';
 import {currentUserId} from '../hooks/useAuth';
 import {friendLabel} from '../lib/overlap';
+import {todayString} from '../lib/calendar';
+import {formatTripDate, formatTripTime} from '../lib/trips';
+import {DatePickerSheet} from '../components/DatePickerSheet';
 import {AppText} from '../components/Themed';
 import {Icon} from '../components/Icon';
 import type {Profile, RootStackParamList, Trip} from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type DatePickerTarget = 'start' | 'end';
 
 /**
  * Your shared itineraries: pending invites up top, then every trip you own or
@@ -39,6 +43,11 @@ export function TripsScreen(): React.JSX.Element {
 
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+  const [tripStartDate, setTripStartDate] = useState(() => todayString());
+  const [tripEndDate, setTripEndDate] = useState(() => todayString());
+  const [tripTime, setTripTime] = useState<string | null>(null);
+  const [datePickerTarget, setDatePickerTarget] =
+    useState<DatePickerTarget | null>(null);
   const [saving, setSaving] = useState(false);
 
   useFocusEffect(
@@ -54,8 +63,17 @@ export function TripsScreen(): React.JSX.Element {
     }
     setSaving(true);
     try {
-      const created = await createTrip(trimmed);
+      const created = await createTrip(
+        trimmed,
+        tripStartDate,
+        tripEndDate,
+        tripTime,
+      );
       setName('');
+      const today = todayString();
+      setTripStartDate(today);
+      setTripEndDate(today);
+      setTripTime(null);
       setCreating(false);
       navigation.navigate('TripDetail', {itineraryId: created.id});
     } catch (e) {
@@ -93,22 +111,61 @@ export function TripsScreen(): React.JSX.Element {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
         {creating && (
-          <View style={styles.createRow}>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Trip name, e.g. Sydney trip"
-              placeholderTextColor={colors.inkMuted}
-              autoFocus
-              maxLength={60}
-              onSubmitEditing={handleCreate}
-              returnKeyType="done"
-              style={styles.createInput}
-            />
-            <Action
-              label={saving ? 'Creating…' : 'Create'}
-              onPress={handleCreate}
-            />
+          <View style={styles.createPanel}>
+            <View style={styles.createRow}>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Trip name, e.g. Sydney trip"
+                placeholderTextColor={colors.inkMuted}
+                autoFocus
+                maxLength={60}
+                onSubmitEditing={handleCreate}
+                returnKeyType="done"
+                style={styles.createInput}
+              />
+              <Action
+                label={saving ? 'Creating…' : 'Create'}
+                onPress={handleCreate}
+              />
+            </View>
+            <View style={styles.dateControls}>
+              <Pressable
+                onPress={() => setDatePickerTarget('start')}
+                style={({pressed}) => [
+                  styles.dateButton,
+                  pressed && styles.rowPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Set trip start date and time">
+                <Icon name="calendar" size={16} color={colors.ink} />
+                <AppText variant="medium" style={styles.dateButtonText}>
+                  Start {formatTripDate(tripStartDate)}
+                </AppText>
+                {tripTime && (
+                  <>
+                    <AppText variant="caption">·</AppText>
+                    <Icon name="clock" size={15} color={colors.inkMuted} />
+                    <AppText variant="medium">
+                      {formatTripTime(tripTime)}
+                    </AppText>
+                  </>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => setDatePickerTarget('end')}
+                style={({pressed}) => [
+                  styles.dateButton,
+                  pressed && styles.rowPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Set trip end date">
+                <Icon name="calendar" size={16} color={colors.ink} />
+                <AppText variant="medium" style={styles.dateButtonText}>
+                  End {formatTripDate(tripEndDate)}
+                </AppText>
+              </Pressable>
+            </View>
           </View>
         )}
 
@@ -122,7 +179,12 @@ export function TripsScreen(): React.JSX.Element {
                     {invite.itinerary.name}
                   </AppText>
                   <AppText variant="caption" numberOfLines={1}>
-                    from @{invite.owner.username}
+                    {formatTripRange(
+                      invite.itinerary.trip_date,
+                      invite.itinerary.trip_end_date,
+                      invite.itinerary.trip_time,
+                    )}{' '}
+                    · from @{invite.owner.username}
                   </AppText>
                 </View>
                 <View style={styles.actions}>
@@ -161,6 +223,39 @@ export function TripsScreen(): React.JSX.Element {
           )}
         </Section>
       </ScrollView>
+
+      <DatePickerSheet
+        visible={datePickerTarget !== null}
+        title={datePickerTarget === 'end' ? 'End date' : 'Start date'}
+        date={datePickerTarget === 'end' ? tripEndDate : tripStartDate}
+        time={datePickerTarget === 'start' ? tripTime : null}
+        requireDate
+        allowClear={false}
+        showTime={datePickerTarget === 'start'}
+        errorTitle={
+          datePickerTarget === 'end'
+            ? 'Could not set end date'
+            : 'Could not set start date'
+        }
+        onSave={(date, time) => {
+          if (!date) {
+            return;
+          }
+          if (datePickerTarget === 'end') {
+            if (date < tripStartDate) {
+              throw new Error('End date must be on or after the start date.');
+            }
+            setTripEndDate(date);
+          } else {
+            setTripStartDate(date);
+            if (tripEndDate < date) {
+              setTripEndDate(date);
+            }
+            setTripTime(time);
+          }
+        }}
+        onClose={() => setDatePickerTarget(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -190,6 +285,11 @@ function TripRow({
       : pending > 0
       ? `${pending} invited`
       : 'Just you so far';
+  const schedule = formatTripRange(
+    trip.itinerary.trip_date,
+    trip.itinerary.trip_end_date,
+    trip.itinerary.trip_time,
+  );
 
   return (
     <Pressable
@@ -201,7 +301,7 @@ function TripRow({
           {trip.itinerary.name}
         </AppText>
         <AppText variant="caption" numberOfLines={1}>
-          {caption}
+          {schedule} · {caption}
         </AppText>
       </View>
       <View style={styles.chevronRight}>
@@ -209,6 +309,18 @@ function TripRow({
       </View>
     </Pressable>
   );
+}
+
+function formatTripRange(
+  startDate: string,
+  endDate: string,
+  time: string | null,
+): string {
+  const dateLabel =
+    startDate === endDate
+      ? formatTripDate(startDate)
+      : `${formatTripDate(startDate)} - ${formatTripDate(endDate)}`;
+  return time ? `${dateLabel} · ${formatTripTime(time)}` : dateLabel;
 }
 
 /** A small stacked-avatar cluster; falls back to a suitcase tile when alone. */
@@ -318,11 +430,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingBottom: 120,
   },
+  createPanel: {
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
   createRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
   createInput: {
     flex: 1,
@@ -334,6 +449,28 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 15,
     backgroundColor: colors.background,
+  },
+  dateButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    flexShrink: 1,
+  },
+  dateButtonText: {
+    marginLeft: 2,
+  },
+  dateControls: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   section: {
     marginBottom: spacing.xl,

@@ -10,9 +10,28 @@ create table if not exists itineraries (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references profiles(id) on delete cascade,
   name text not null check (length(trim(name)) > 0),
+  trip_date date not null default current_date,
+  trip_end_date date not null default current_date,
+  trip_time time,
   created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  updated_at timestamptz default now(),
+  constraint itineraries_trip_date_range_chk check (trip_end_date >= trip_date)
 );
+
+-- Backfill older trip tables created before trip-level date/time existed.
+alter table itineraries add column if not exists trip_date date;
+alter table itineraries alter column trip_date set default current_date;
+update itineraries set trip_date = current_date where trip_date is null;
+alter table itineraries alter column trip_date set not null;
+alter table itineraries add column if not exists trip_end_date date;
+alter table itineraries alter column trip_end_date set default current_date;
+update itineraries set trip_end_date = trip_date where trip_end_date is null;
+update itineraries set trip_end_date = trip_date where trip_end_date < trip_date;
+alter table itineraries alter column trip_end_date set not null;
+alter table itineraries add column if not exists trip_time time;
+alter table itineraries drop constraint if exists itineraries_trip_date_range_chk;
+alter table itineraries add constraint itineraries_trip_date_range_chk
+  check (trip_end_date >= trip_date);
 
 create table if not exists itinerary_members (
   id uuid primary key default gen_random_uuid(),
@@ -97,6 +116,61 @@ revoke all on function is_itinerary_participant(uuid, uuid) from public;
 grant execute on function is_itinerary_participant(uuid, uuid) to authenticated;
 revoke all on function stash_in_my_itinerary(uuid, uuid) from public;
 grant execute on function stash_in_my_itinerary(uuid, uuid) to authenticated;
+
+-- Create trips with ownership derived from the signed-in JWT, not from a
+-- client-supplied owner_id. This keeps the RLS boundary server-side.
+drop function if exists create_itinerary(text);
+drop function if exists create_itinerary(text, date, time);
+create or replace function create_itinerary(
+  p_name text,
+  p_trip_date date,
+  p_trip_end_date date,
+  p_trip_time time default null
+)
+returns itineraries
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid := auth.uid();
+  trimmed_name text := trim(coalesce(p_name, ''));
+  created itineraries;
+begin
+  if uid is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if length(trimmed_name) = 0 then
+    raise exception 'Give your trip a name.';
+  end if;
+
+  if length(trimmed_name) > 60 then
+    raise exception 'Trip names are capped at 60 characters.';
+  end if;
+
+  if p_trip_date is null then
+    raise exception 'Choose a start date.';
+  end if;
+
+  if p_trip_end_date is null then
+    raise exception 'Choose an end date.';
+  end if;
+
+  if p_trip_end_date < p_trip_date then
+    raise exception 'End date must be on or after the start date.';
+  end if;
+
+  insert into itineraries (owner_id, name, trip_date, trip_end_date, trip_time)
+  values (uid, trimmed_name, p_trip_date, p_trip_end_date, p_trip_time)
+  returning * into created;
+
+  return created;
+end;
+$$;
+
+revoke all on function create_itinerary(text, date, date, time) from public;
+grant execute on function create_itinerary(text, date, date, time) to authenticated;
 
 -- ── Row Level Security ──────────────────────────────────────────────────────
 alter table itineraries enable row level security;

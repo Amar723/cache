@@ -57,3 +57,35 @@ describe('createStash visibility threading', () => {
     );
   });
 });
+
+describe('createStash video link', () => {
+  function mockInsert() {
+    const insert = jest.fn(() => ({
+      select: jest.fn(() => ({
+        single: jest.fn().mockResolvedValue({data: {id: 's3'}, error: null}),
+      })),
+    }));
+    mockFrom.mockReturnValue({insert});
+    return insert;
+  }
+
+  it('stores an empty link as null (video-less stash)', async () => {
+    const insert = mockInsert();
+
+    await createStash(draft({tiktok_url: ''}));
+
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({tiktok_url: null}),
+    );
+  });
+
+  it('keeps a real link as-is', async () => {
+    const insert = mockInsert();
+
+    await createStash(draft({tiktok_url: 'https://vm.tiktok.com/x/'}));
+
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({tiktok_url: 'https://vm.tiktok.com/x/'}),
+    );
+  });
+});

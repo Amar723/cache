@@ -78,7 +78,7 @@ export async function createStash(draft: StashDraft): Promise<Stash> {
     lng: draft.lng,
     category: draft.category,
     notes: draft.notes.length > 0 ? draft.notes : null,
-    tiktok_url: draft.tiktok_url,
+    tiktok_url: draft.tiktok_url.trim().length > 0 ? draft.tiktok_url : null,
     thumbnail_url: draft.thumbnail_url,
     opening_hours: draft.opening_hours,
     place_id: draft.place_id,
@@ -115,7 +115,7 @@ export async function updateStash(
     lng: draft.lng,
     category: draft.category,
     notes: draft.notes.length > 0 ? draft.notes : null,
-    tiktok_url: draft.tiktok_url,
+    tiktok_url: draft.tiktok_url.trim().length > 0 ? draft.tiktok_url : null,
     thumbnail_url: draft.thumbnail_url,
     opening_hours: draft.opening_hours,
     place_id: draft.place_id,
@@ -161,16 +161,21 @@ export async function deleteStash(stashId: string): Promise<void> {
  * future loads succeed.
  */
 export async function refreshThumbnail(stash: Stash): Promise<string | null> {
-  const fetchThumbnail = isTikTokUrl(stash.tiktok_url)
+  const videoUrl = stash.tiktok_url;
+  if (videoUrl === null) {
+    return null;
+  }
+
+  const fetchThumbnail = isTikTokUrl(videoUrl)
     ? fetchTikTokThumbnail
-    : isInstagramUrl(stash.tiktok_url)
+    : isInstagramUrl(videoUrl)
     ? fetchInstagramThumbnail
     : null;
   if (!fetchThumbnail) {
     return null;
   }
 
-  const {thumbnail_url} = await fetchThumbnail(stash.tiktok_url);
+  const {thumbnail_url} = await fetchThumbnail(videoUrl);
   if (!thumbnail_url) {
     return null;
   }
@@ -213,7 +218,11 @@ export function useThumbnailUri(stash: Stash | null): {
     // If the stored URL is null but we have a supported video link, try to
     // fetch a fresh thumbnail. This self-heals pins saved while the oEmbed
     // endpoint was broken without requiring the user to re-edit them.
-    if (!stored && stash && isSupportedVideoUrl(stash.tiktok_url)) {
+    if (
+      !stored &&
+      stash?.tiktok_url != null &&
+      isSupportedVideoUrl(stash.tiktok_url)
+    ) {
       refreshThumbnail(stash).then(fresh => {
         if (fresh) {
           setUri(fresh);

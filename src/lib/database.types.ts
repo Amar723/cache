@@ -72,7 +72,7 @@ export interface StashRow {
   lng: number;
   category: Category | null;
   notes: string | null;
-  tiktok_url: string;
+  tiktok_url: string | null;
   thumbnail_url: string | null;
   opening_hours: OpeningHours | null;
   place_id: string | null;

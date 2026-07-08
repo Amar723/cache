@@ -157,7 +157,8 @@ export function StashBottomSheet({
             <Pressable
               accessibilityRole="imagebutton"
               accessibilityLabel="Open original video"
-              onPress={() => openVideo(stash.tiktok_url)}
+              disabled={stash.tiktok_url === null}
+              onPress={() => stash.tiktok_url && openVideo(stash.tiktok_url)}
               style={styles.thumbWrap}>
               {thumbUri ? (
                 <Image
@@ -166,7 +167,7 @@ export function StashBottomSheet({
                   resizeMode="cover"
                   onError={handleThumbError}
                 />
-              ) : (
+              ) : stash.tiktok_url ? (
                 <View style={[styles.thumb, styles.thumbFallback]}>
                   <Icon name="play" size={28} color={colors.inkMuted} />
                   <AppText
@@ -176,11 +177,21 @@ export function StashBottomSheet({
                     {stash.tiktok_url}
                   </AppText>
                 </View>
+              ) : (
+                <View style={[styles.thumb, styles.thumbFallback]}>
+                  <Icon
+                    name={CATEGORY_ICON[stash.category ?? 'Other']}
+                    size={34}
+                    color={colors.inkMuted}
+                  />
+                </View>
               )}
-              <View style={styles.playHint}>
-                <Icon name="play" size={13} color={colors.background} />
-                <AppText style={styles.playHintText}>Watch</AppText>
-              </View>
+              {stash.tiktok_url !== null && (
+                <View style={styles.playHint}>
+                  <Icon name="play" size={13} color={colors.background} />
+                  <AppText style={styles.playHintText}>Watch</AppText>
+                </View>
+              )}
             </Pressable>
 
             <View style={styles.headerRow}>

@@ -42,6 +42,11 @@ create table if not exists stashes (
 -- Defensive: ensure the Phase 2 column exists on an older stashes table.
 alter table stashes add column if not exists visibility text default 'private';
 
+-- Phase 3 (trips): places can be stashed without a video, so the link is
+-- optional. Backfill: manual adds used to store ''.
+alter table stashes alter column tiktok_url drop not null;
+update stashes set tiktok_url = null where tiktok_url = '';
+
 create table if not exists friendships (
   id uuid primary key default gen_random_uuid(),
   requester_id uuid not null references profiles(id) on delete cascade,

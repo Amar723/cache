@@ -107,10 +107,6 @@ export function ProfileScreen(): React.JSX.Element {
           loading={deleting}
           style={styles.deleteAccount}
         />
-
-        <AppText variant="caption" style={styles.footer}>
-          Cache — your personal map of places worth going.
-        </AppText>
       </ScrollView>
     </SafeAreaView>
   );

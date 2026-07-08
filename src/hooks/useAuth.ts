@@ -153,7 +153,8 @@ export async function handleRecoveryLink(url: string): Promise<boolean> {
   const params = new URLSearchParams(fragment);
   const access_token = params.get('access_token');
   const refresh_token = params.get('refresh_token');
-  if (!access_token || !refresh_token) {
+  const type = params.get('type');
+  if (!access_token || !refresh_token || type !== 'recovery') {
     return false;
   }
   const {error} = await supabase.auth.setSession({access_token, refresh_token});
@@ -173,6 +174,65 @@ export async function completePasswordReset(
     throw new Error(error.message);
   }
   store.setState({recovering: false});
+}
+
+async function getCurrentSession(): Promise<Session | null> {
+  const stored = store.getState().session;
+  if (stored) {
+    return stored;
+  }
+
+  const {data, error} = await supabase.auth.getSession();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data.session;
+}
+
+async function restoreSession(session: Session): Promise<void> {
+  const {access_token, refresh_token} = session;
+  if (!access_token || !refresh_token) {
+    return;
+  }
+  await supabase.auth.setSession({access_token, refresh_token});
+}
+
+/** Change a signed-in user's password after verifying their current password. */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  if (!currentPassword) {
+    throw new Error('Enter your current password.');
+  }
+  if (newPassword.length < 6) {
+    throw new Error('Choose a password of at least 6 characters.');
+  }
+
+  const session = await getCurrentSession();
+  const email = session?.user.email?.trim();
+  if (!session || !email) {
+    throw new Error('Your session expired. Please log in again.');
+  }
+
+  const {data, error} = await supabase.auth.signInWithPassword({
+    email,
+    password: currentPassword,
+  });
+  if (error) {
+    throw new Error('Current password is incorrect.');
+  }
+  if (data.user?.id !== session.user.id) {
+    await restoreSession(session);
+    throw new Error('Could not verify this account. Please log in again.');
+  }
+
+  const {error: updateError} = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
 }
 
 /** Permanently delete the account and all its data, then sign out. */
@@ -265,6 +325,7 @@ export function useAuth() {
     refreshProfile,
     requestPasswordReset,
     completePasswordReset,
+    changePassword,
     deleteAccount,
   };
 }

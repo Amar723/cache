@@ -68,7 +68,7 @@ function sortClosestFirst(path: string, body: string): string {
     const predictions = json?.predictions;
     if (
       !Array.isArray(predictions) ||
-      !predictions.some((p) => typeof p?.distance_meters === 'number')
+      !predictions.some(p => typeof p?.distance_meters === 'number')
     ) {
       return body;
     }

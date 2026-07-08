@@ -48,6 +48,8 @@
 	<string>Cache uses your location in the background to notify you when you walk near a place you saved — even when the app is closed.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Cache shows your position on the map and reminds you when you're near a place you saved.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cache needs access to your photos so you can choose a profile picture.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>DMSans-Regular.ttf</string>

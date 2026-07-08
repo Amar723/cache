@@ -60,6 +60,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
   UpdatePassword: undefined;
+  ChangePassword: undefined;
   Tabs: {screen?: keyof TabParamList} | undefined;
   // `sharedUrl` from a share; `stashId` opens the form in edit mode. Neither =
   // manual add.

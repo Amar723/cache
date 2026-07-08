@@ -13,6 +13,7 @@ import {handleRecoveryLink, useAuth} from '../hooks/useAuth';
 import {AuthScreen} from '../screens/AuthScreen';
 import {OnboardingScreen} from '../screens/OnboardingScreen';
 import {AddStashScreen} from '../screens/AddStashScreen';
+import {ChangePasswordScreen} from '../screens/ChangePasswordScreen';
 import {FriendMapScreen} from '../screens/FriendMapScreen';
 import {UpdatePasswordScreen} from '../screens/UpdatePasswordScreen';
 import {TabNavigator} from './TabNavigator';
@@ -117,6 +118,11 @@ export function RootNavigator(): React.JSX.Element {
           <Stack.Screen
             name="FriendMap"
             component={FriendMapScreen}
+            options={{animation: 'slide_from_right'}}
+          />
+          <Stack.Screen
+            name="ChangePassword"
+            component={ChangePasswordScreen}
             options={{animation: 'slide_from_right'}}
           />
         </Stack.Navigator>

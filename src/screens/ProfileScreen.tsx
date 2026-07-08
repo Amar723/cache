@@ -1,18 +1,24 @@
 import React, {useMemo, useState} from 'react';
 import {Alert, Image, ScrollView, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {useNavigation} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
 import {colors, spacing} from '../lib/theme';
 import {useAuth} from '../hooks/useAuth';
 import {useStashes} from '../hooks/useStashes';
 import {AppText, Card, PrimaryButton} from '../components/Themed';
 import {Icon} from '../components/Icon';
+import type {RootStackParamList} from '../types';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 /**
  * Profile: avatar, identity, stash/visited counts, sign out. Counts derive from
  * the live stash store so they stay in sync with "mark as visited".
  */
 export function ProfileScreen(): React.JSX.Element {
+  const navigation = useNavigation<Nav>();
   const {profile, signOut, deleteAccount} = useAuth();
   const {stashes} = useStashes();
   const [deleting, setDeleting] = useState(false);
@@ -94,6 +100,13 @@ export function ProfileScreen(): React.JSX.Element {
         </View>
 
         <PrimaryButton
+          title="Change password"
+          variant="secondary"
+          onPress={() => navigation.navigate('ChangePassword')}
+          style={styles.changePassword}
+        />
+
+        <PrimaryButton
           title="Sign out"
           variant="secondary"
           onPress={() => signOut()}
@@ -159,8 +172,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: spacing.sm,
   },
-  signOut: {
+  changePassword: {
     marginTop: spacing.sm,
+  },
+  signOut: {
+    marginTop: spacing.md,
   },
   deleteAccount: {
     marginTop: spacing.md,

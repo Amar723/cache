@@ -80,7 +80,7 @@ export async function fetchInstagramThumbnail(
     // Lazy require: `supabase.ts` pulls in RN-native deps (AsyncStorage, the
     // URL polyfill) that Jest can't transform, which would break this file's
     // pure URL-matching functions (isTikTokUrl, extractUrl, ...) under test.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     const {supabase} = require('./supabase') as typeof import('./supabase');
     const {data, error} = await supabase.functions.invoke('instagram-oembed', {
       body: {url: videoUrl},

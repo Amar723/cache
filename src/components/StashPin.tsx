@@ -1,5 +1,13 @@
-import React, {useState} from 'react';
-import {Image, Platform, StyleSheet, Text, View} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {
+  Animated,
+  Easing,
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {Marker} from 'react-native-maps';
 
 import {colors, fonts, radius} from '../lib/theme';
@@ -12,6 +20,8 @@ interface StashPinProps {
   onPress: (stash: Stash) => void;
   /** How many friends have also saved this place (0 = none). */
   friendCount?: number;
+  /** Incremented by the map to play a one-shot visited confirmation pulse. */
+  visitedPulseKey?: number;
 }
 
 /**
@@ -28,10 +38,43 @@ export function StashPin({
   stash,
   onPress,
   friendCount = 0,
+  visitedPulseKey = 0,
 }: StashPinProps): React.JSX.Element {
   const visited = stash.visited_at !== null;
   const {uri, onError} = useThumbnailUri(stash);
+  const pulse = useRef(new Animated.Value(0)).current;
   const [imageSettled, setImageSettled] = useState(uri === null);
+  const [pulseActive, setPulseActive] = useState(false);
+
+  useEffect(() => {
+    if (visitedPulseKey === 0) {
+      return;
+    }
+
+    setPulseActive(true);
+    pulse.setValue(0);
+    Animated.timing(pulse, {
+      toValue: 1,
+      duration: 760,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => setPulseActive(false));
+  }, [pulse, visitedPulseKey]);
+
+  const pulseStyle = {
+    opacity: pulse.interpolate({
+      inputRange: [0, 0.7, 1],
+      outputRange: [0.55, 0.18, 0],
+    }),
+    transform: [
+      {
+        scale: pulse.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.95, 1.9],
+        }),
+      },
+    ],
+  };
 
   return (
     <Marker
@@ -40,7 +83,8 @@ export function StashPin({
       tracksViewChanges={
         // A friend badge changes the rendered marker, so keep tracking until the
         // image settles regardless of platform when one is present.
-        Platform.OS === 'ios' || friendCount > 0 ? !imageSettled : false
+        pulseActive ||
+        (Platform.OS === 'ios' || friendCount > 0 ? !imageSettled : false)
       }
       // The view now extends well below the thumbnail (tail + name label), so
       // anchoring at the vertical center (0.5) would drag the thumbnail away
@@ -61,23 +105,31 @@ export function StashPin({
             )}
           </View>
         )}
-        <View style={[styles.thumbWrap, visited && styles.thumbWrapVisited]}>
-          {uri ? (
-            <Image
-              source={{uri}}
-              style={styles.thumb}
-              onLoadEnd={() => setImageSettled(true)}
-              onError={onError}
+        <View style={styles.thumbCluster}>
+          {pulseActive && (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.pulseRing, pulseStyle]}
             />
-          ) : (
-            <View style={[styles.thumb, styles.thumbFallback]}>
-              <Icon
-                name={CATEGORY_ICON[stash.category ?? 'Other']}
-                size={22}
-                color={colors.inkMuted}
-              />
-            </View>
           )}
+          <View style={[styles.thumbWrap, visited && styles.thumbWrapVisited]}>
+            {uri ? (
+              <Image
+                source={{uri}}
+                style={styles.thumb}
+                onLoadEnd={() => setImageSettled(true)}
+                onError={onError}
+              />
+            ) : (
+              <View style={[styles.thumb, styles.thumbFallback]}>
+                <Icon
+                  name={CATEGORY_ICON[stash.category ?? 'Other']}
+                  size={22}
+                  color={colors.inkMuted}
+                />
+              </View>
+            )}
+          </View>
         </View>
         {/* The little pointer "tail" under the square. */}
         <View style={[styles.tail, visited && styles.tailVisited]} />
@@ -94,6 +146,21 @@ export function StashPin({
 const styles = StyleSheet.create({
   pin: {
     alignItems: 'center',
+  },
+  thumbCluster: {
+    width: 50,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 58,
+    height: 58,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: colors.success,
+    backgroundColor: 'rgba(127,168,106,0.12)',
   },
   thumbWrap: {
     width: 50,

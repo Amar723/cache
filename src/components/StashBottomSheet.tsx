@@ -1,5 +1,12 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Alert, Image, Pressable, StyleSheet, View} from 'react-native';
+import {
+  Alert,
+  Animated,
+  Image,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
@@ -8,8 +15,9 @@ import BottomSheet, {
 
 import {colors, radius, spacing} from '../lib/theme';
 import {formatDate} from '../lib/format';
+import {lightImpact} from '../lib/haptics';
 import {openVideo} from '../lib/tiktok';
-import {useStashes, useThumbnailUri} from '../hooks/useStashes';
+import {useStash, useStashes, useThumbnailUri} from '../hooks/useStashes';
 import {useStashOverlap} from '../hooks/useOverlaps';
 import {friendLabel} from '../lib/overlap';
 import {navigationRef} from '../navigation/navigationRef';
@@ -23,6 +31,8 @@ interface StashBottomSheetProps {
   onClose: () => void;
   /** A friend's pin: show details + "Watch", but no owner actions. */
   readOnly?: boolean;
+  /** Called after one of the user's places is successfully marked visited. */
+  onVisited?: (stashId: string) => void;
 }
 
 /**
@@ -34,13 +44,20 @@ export function StashBottomSheet({
   stash,
   onClose,
   readOnly = false,
+  onVisited,
 }: StashBottomSheetProps): React.JSX.Element {
   const sheetRef = useRef<BottomSheet>(null);
   const {markVisited, deleteStash} = useStashes();
-  const alsoSaved = useStashOverlap(stash?.id ?? null);
-  const {uri: thumbUri, onError: handleThumbError} = useThumbnailUri(stash);
+  const liveStash = useStash(!readOnly ? stash?.id ?? null : null);
+  const activeStash = liveStash ?? stash;
+  const alsoSaved = useStashOverlap(activeStash?.id ?? null);
+  const {uri: thumbUri, onError: handleThumbError} =
+    useThumbnailUri(activeStash);
+  const visitScale = useRef(new Animated.Value(1)).current;
+  const freshVisitedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [freshVisitedId, setFreshVisitedId] = useState<string | null>(null);
 
   const snapPoints = useMemo(() => ['55%', '85%'], []);
 
@@ -53,6 +70,15 @@ export function StashBottomSheet({
     }
   }, [stash]);
 
+  useEffect(
+    () => () => {
+      if (freshVisitedTimer.current) {
+        clearTimeout(freshVisitedTimer.current);
+      }
+    },
+    [],
+  );
+
   const handleChange = useCallback(
     (index: number) => {
       if (index === -1 && stash) {
@@ -63,16 +89,42 @@ export function StashBottomSheet({
   );
 
   const handleMarkVisited = useCallback(async () => {
-    if (!stash) {
+    if (!activeStash) {
       return;
     }
     setSaving(true);
     try {
-      await markVisited(stash.id);
+      await markVisited(activeStash.id);
+      lightImpact();
+      setFreshVisitedId(activeStash.id);
+      onVisited?.(activeStash.id);
+
+      visitScale.setValue(1);
+      Animated.sequence([
+        Animated.timing(visitScale, {
+          toValue: 1.04,
+          duration: 140,
+          useNativeDriver: true,
+        }),
+        Animated.spring(visitScale, {
+          toValue: 1,
+          friction: 5,
+          tension: 120,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      if (freshVisitedTimer.current) {
+        clearTimeout(freshVisitedTimer.current);
+      }
+      freshVisitedTimer.current = setTimeout(
+        () => setFreshVisitedId(null),
+        700,
+      );
     } finally {
       setSaving(false);
     }
-  }, [markVisited, stash]);
+  }, [activeStash, markVisited, onVisited, visitScale]);
 
   const handleEdit = useCallback(() => {
     if (!stash) {
@@ -127,7 +179,8 @@ export function StashBottomSheet({
     [],
   );
 
-  const visited = stash?.visited_at != null;
+  const visited = activeStash?.visited_at != null;
+  const freshVisited = freshVisitedId === activeStash?.id;
 
   return (
     <BottomSheet
@@ -140,12 +193,12 @@ export function StashBottomSheet({
       handleIndicatorStyle={styles.handle}
       backgroundStyle={styles.sheetBackground}>
       <BottomSheetView style={styles.content}>
-        {stash && (
+        {activeStash && (
           <>
             <Pressable
               accessibilityRole="imagebutton"
               accessibilityLabel="Open original video"
-              onPress={() => openVideo(stash.tiktok_url)}
+              onPress={() => openVideo(activeStash.tiktok_url)}
               style={styles.thumbWrap}>
               {thumbUri ? (
                 <Image
@@ -161,7 +214,7 @@ export function StashBottomSheet({
                     variant="caption"
                     numberOfLines={2}
                     style={styles.thumbFallbackText}>
-                    {stash.tiktok_url}
+                    {activeStash.tiktok_url}
                   </AppText>
                 </View>
               )}
@@ -173,37 +226,37 @@ export function StashBottomSheet({
 
             <View style={styles.headerRow}>
               <AppText variant="serifTitle" style={styles.title}>
-                {stash.place_name}
+                {activeStash.place_name}
               </AppText>
-              {stash.category && (
+              {activeStash.category && (
                 <View style={styles.categoryChip}>
                   <Icon
-                    name={CATEGORY_ICON[stash.category]}
+                    name={CATEGORY_ICON[activeStash.category]}
                     size={14}
                     color={colors.onAccent}
                     strokeWidth={1.9}
                   />
                   <AppText variant="caption" style={styles.categoryText}>
-                    {stash.category}
+                    {activeStash.category}
                   </AppText>
                 </View>
               )}
             </View>
 
-            {stash.address ? (
+            {activeStash.address ? (
               <AppText variant="caption" style={styles.address}>
-                {stash.address}
+                {activeStash.address}
               </AppText>
             ) : null}
 
-            {stash.notes ? (
+            {activeStash.notes ? (
               <AppText variant="body" style={styles.notes}>
-                {stash.notes}
+                {activeStash.notes}
               </AppText>
             ) : null}
 
             <AppText variant="caption" style={styles.savedDate}>
-              Saved {formatDate(stash.created_at)}
+              Saved {formatDate(activeStash.created_at)}
             </AppText>
 
             {alsoSaved.length > 0 && (
@@ -222,12 +275,28 @@ export function StashBottomSheet({
             {!readOnly && (
               <View style={styles.actions}>
                 {visited ? (
-                  <View style={styles.visitedPill}>
-                    <Icon name="check" size={18} color={colors.success} />
-                    <AppText variant="bold" style={styles.visitedText}>
-                      Visited {formatDate(stash.visited_at)}
+                  <Animated.View
+                    style={[
+                      styles.visitedPill,
+                      freshVisited && styles.visitedPillFresh,
+                      {transform: [{scale: visitScale}]},
+                    ]}>
+                    <Icon
+                      name="check"
+                      size={18}
+                      color={freshVisited ? colors.background : colors.success}
+                    />
+                    <AppText
+                      variant="bold"
+                      style={[
+                        styles.visitedText,
+                        freshVisited && styles.visitedTextFresh,
+                      ]}>
+                      {freshVisited
+                        ? 'Visited'
+                        : `Visited ${formatDate(activeStash.visited_at)}`}
                     </AppText>
-                  </View>
+                  </Animated.View>
                 ) : (
                   <PrimaryButton
                     title="Mark as Visited"
@@ -432,7 +501,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
+  visitedPillFresh: {
+    backgroundColor: colors.success,
+  },
   visitedText: {
     color: colors.success,
+  },
+  visitedTextFresh: {
+    color: colors.background,
   },
 });

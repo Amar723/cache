@@ -56,8 +56,13 @@ export function MapScreen(): React.JSX.Element {
   const overlaps = useOverlapMap();
   const mapRef = useRef<MapView>(null);
   const didInitialCenter = useRef(false);
+  const pendingVisitedPulse = useRef<string | null>(null);
   const [selected, setSelected] = useState<Stash | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [visitedPulse, setVisitedPulse] = useState<{
+    stashId: string;
+    key: number;
+  } | null>(null);
 
   // The region the map first lays out at. Held until we can open *at the user*
   // (cached or live location) or at their first pin — rather than flashing a
@@ -172,6 +177,23 @@ export function MapScreen(): React.JSX.Element {
     }
   }, [location]);
 
+  const handleVisited = useCallback((stashId: string) => {
+    pendingVisitedPulse.current = stashId;
+  }, []);
+
+  const handleSheetClose = useCallback(() => {
+    const pulseId = pendingVisitedPulse.current;
+    pendingVisitedPulse.current = null;
+    setSelected(null);
+
+    if (pulseId) {
+      setVisitedPulse(prev => ({
+        stashId: pulseId,
+        key: (prev?.key ?? 0) + 1,
+      }));
+    }
+  }, []);
+
   return (
     <View style={styles.container}>
       {initialRegion ? (
@@ -190,6 +212,9 @@ export function MapScreen(): React.JSX.Element {
               stash={stash}
               onPress={setSelected}
               friendCount={overlaps[stash.id]?.length ?? 0}
+              visitedPulseKey={
+                visitedPulse?.stashId === stash.id ? visitedPulse.key : 0
+              }
             />
           ))}
         </MapView>
@@ -241,7 +266,11 @@ export function MapScreen(): React.JSX.Element {
         </View>
       )}
 
-      <StashBottomSheet stash={selected} onClose={() => setSelected(null)} />
+      <StashBottomSheet
+        stash={selected}
+        onClose={handleSheetClose}
+        onVisited={handleVisited}
+      />
     </View>
   );
 }

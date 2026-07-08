@@ -313,7 +313,7 @@ export function AddStashForm({
       <TextInput
         value={url}
         onChangeText={setUrl}
-        placeholder="https://www.tiktok.com/@user/video/…"
+        placeholder="Paste a TikTok or Instagram Reel link"
         placeholderTextColor={colors.inkMuted}
         autoCapitalize="none"
         autoCorrect={false}

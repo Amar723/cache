@@ -1,17 +1,26 @@
 import type {
   Category,
   FriendshipStatus,
+  ItineraryMemberStatus,
+  ItineraryRow,
   OpeningHours,
   ProfileRow,
   StashRow,
   Visibility,
 } from './lib/database.types';
 
-export type {Category, FriendshipStatus, OpeningHours, Visibility};
+export type {
+  Category,
+  FriendshipStatus,
+  ItineraryMemberStatus,
+  OpeningHours,
+  Visibility,
+};
 
 /** A saved place. Alias of the DB row so screens never import db types directly. */
 export type Stash = StashRow;
 export type Profile = ProfileRow;
+export type Itinerary = ItineraryRow;
 
 /**
  * An accepted friend, or a pending request. `profile` is always the *other*
@@ -25,6 +34,42 @@ export interface Friend {
 export interface FriendRequest {
   friendshipId: string;
   profile: Profile;
+}
+
+/** Someone invited to / part of a trip. `memberId` = itinerary_members.id. */
+export interface TripMember {
+  memberId: string;
+  profile: Profile;
+  status: ItineraryMemberStatus;
+}
+
+/** A trip the viewer owns or has accepted. The owner is not in `members`. */
+export interface Trip {
+  itinerary: Itinerary;
+  owner: Profile;
+  members: TripMember[];
+  isOwner: boolean;
+}
+
+/** A pending invitation to someone else's trip, from the viewer's POV. */
+export interface TripInvite {
+  memberId: string;
+  itinerary: Itinerary;
+  owner: Profile;
+}
+
+/**
+ * A stash shared into a trip, joined with its stash row and the profile of
+ * whoever added it. `scheduledDate`/`scheduledTime` are destination
+ * wall-clock strings ('YYYY-MM-DD' / 'HH:MM:SS'), never Date objects.
+ */
+export interface TripStashEntry {
+  entryId: string;
+  itineraryId: string;
+  stash: Stash;
+  addedBy: Profile | null;
+  scheduledDate: string | null;
+  scheduledTime: string | null;
 }
 
 /** Ordered category options for the picker. */

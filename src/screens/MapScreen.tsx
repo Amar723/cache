@@ -22,6 +22,7 @@ import {
   consumePendingStash,
   subscribeOpenStash,
 } from '../navigation/navigationRef';
+import {useTabBarVisibility} from '../navigation/tabBarVisibility';
 import {StashPin} from '../components/StashPin';
 import {StashBottomSheet} from '../components/StashBottomSheet';
 import {AppText} from '../components/Themed';
@@ -53,6 +54,7 @@ function regionFor(point: {lat: number; lng: number}, delta = 0.05): Region {
 export function MapScreen(): React.JSX.Element {
   const {stashes} = useStashes();
   const {location} = useLocation();
+  const {setVisible: setTabBarVisible} = useTabBarVisibility();
   const overlaps = useOverlapMap();
   const mapRef = useRef<MapView>(null);
   const didInitialCenter = useRef(false);
@@ -102,7 +104,15 @@ export function MapScreen(): React.JSX.Element {
   useFocusEffect(
     useCallback(() => {
       refreshStashes().then(() => reconcileFriendOverlaps());
-    }, []),
+      return () => setTabBarVisible(true);
+    }, [setTabBarVisible]),
+  );
+
+  const handleSheetOpenChange = useCallback(
+    (open: boolean) => {
+      setTabBarVisible(!open);
+    },
+    [setTabBarVisible],
   );
 
   // Notification deep links: live events + cold-start pending id.
@@ -185,6 +195,7 @@ export function MapScreen(): React.JSX.Element {
     const pulseId = pendingVisitedPulse.current;
     pendingVisitedPulse.current = null;
     setSelected(null);
+    setTabBarVisible(true);
 
     if (pulseId) {
       setVisitedPulse(prev => ({
@@ -192,7 +203,7 @@ export function MapScreen(): React.JSX.Element {
         key: (prev?.key ?? 0) + 1,
       }));
     }
-  }, []);
+  }, [setTabBarVisible]);
 
   return (
     <View style={styles.container}>
@@ -270,6 +281,7 @@ export function MapScreen(): React.JSX.Element {
         stash={selected}
         onClose={handleSheetClose}
         onVisited={handleVisited}
+        onOpenChange={handleSheetOpenChange}
       />
     </View>
   );

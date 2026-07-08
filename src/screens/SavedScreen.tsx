@@ -14,6 +14,7 @@ import {colors, elevation, radius, spacing} from '../lib/theme';
 import {formatDate} from '../lib/format';
 import {refreshStashes, useStashes, useThumbnailUri} from '../hooks/useStashes';
 import {navigationRef} from '../navigation/navigationRef';
+import {useTabBarVisibility} from '../navigation/tabBarVisibility';
 import {StashBottomSheet} from '../components/StashBottomSheet';
 import {AppText} from '../components/Themed';
 import {CATEGORY_ICON, Icon} from '../components/Icon';
@@ -27,13 +28,27 @@ type Tab = 'all' | 'visited';
  */
 export function SavedScreen(): React.JSX.Element {
   const {stashes, loading} = useStashes();
+  const {setVisible: setTabBarVisible} = useTabBarVisibility();
   const [tab, setTab] = useState<Tab>('all');
   const [selected, setSelected] = useState<Stash | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       refreshStashes();
-    }, []),
+      return () => setTabBarVisible(true);
+    }, [setTabBarVisible]),
+  );
+
+  const handleSheetClose = useCallback(() => {
+    setSelected(null);
+    setTabBarVisible(true);
+  }, [setTabBarVisible]);
+
+  const handleSheetOpenChange = useCallback(
+    (open: boolean) => {
+      setTabBarVisible(!open);
+    },
+    [setTabBarVisible],
   );
 
   // Store is already ordered newest-first; we only filter here.
@@ -108,7 +123,11 @@ export function SavedScreen(): React.JSX.Element {
         }
       />
 
-      <StashBottomSheet stash={selected} onClose={() => setSelected(null)} />
+      <StashBottomSheet
+        stash={selected}
+        onClose={handleSheetClose}
+        onOpenChange={handleSheetOpenChange}
+      />
     </SafeAreaView>
   );
 }

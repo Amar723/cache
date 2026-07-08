@@ -9,9 +9,10 @@ import {
 } from 'react-native';
 import BottomSheet, {
   BottomSheetBackdrop,
-  BottomSheetView,
+  BottomSheetScrollView,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {colors, radius, spacing} from '../lib/theme';
 import {formatDate} from '../lib/format';
@@ -33,6 +34,8 @@ interface StashBottomSheetProps {
   readOnly?: boolean;
   /** Called after one of the user's places is successfully marked visited. */
   onVisited?: (stashId: string) => void;
+  /** Called when the sheet enters or leaves an open snap point. */
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -45,8 +48,10 @@ export function StashBottomSheet({
   onClose,
   readOnly = false,
   onVisited,
+  onOpenChange,
 }: StashBottomSheetProps): React.JSX.Element {
   const sheetRef = useRef<BottomSheet>(null);
+  const insets = useSafeAreaInsets();
   const {markVisited, deleteStash} = useStashes();
   const liveStash = useStash(!readOnly ? stash?.id ?? null : null);
   const activeStash = liveStash ?? stash;
@@ -58,34 +63,60 @@ export function StashBottomSheet({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [freshVisitedId, setFreshVisitedId] = useState<string | null>(null);
+  const openRef = useRef(false);
+  const onOpenChangeRef = useRef(onOpenChange);
 
   const snapPoints = useMemo(() => ['55%', '85%'], []);
+  const contentContainerStyle = useMemo(
+    () => [
+      styles.content,
+      {
+        paddingBottom: spacing.xxl + insets.bottom,
+      },
+    ],
+    [insets.bottom],
+  );
+
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
+
+  const notifyOpenChange = useCallback((open: boolean) => {
+    if (openRef.current === open) {
+      return;
+    }
+    openRef.current = open;
+    onOpenChangeRef.current?.(open);
+  }, []);
 
   // Open when a stash is selected, close when cleared.
   useEffect(() => {
     if (stash) {
+      notifyOpenChange(true);
       sheetRef.current?.snapToIndex(0);
     } else {
       sheetRef.current?.close();
     }
-  }, [stash]);
+  }, [notifyOpenChange, stash]);
 
   useEffect(
     () => () => {
       if (freshVisitedTimer.current) {
         clearTimeout(freshVisitedTimer.current);
       }
+      onOpenChangeRef.current?.(false);
     },
     [],
   );
 
   const handleChange = useCallback(
     (index: number) => {
+      notifyOpenChange(index >= 0);
       if (index === -1 && stash) {
         onClose();
       }
     },
-    [onClose, stash],
+    [notifyOpenChange, onClose, stash],
   );
 
   const handleMarkVisited = useCallback(async () => {
@@ -192,7 +223,9 @@ export function StashBottomSheet({
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={styles.handle}
       backgroundStyle={styles.sheetBackground}>
-      <BottomSheetView style={styles.content}>
+      <BottomSheetScrollView
+        contentContainerStyle={contentContainerStyle}
+        showsVerticalScrollIndicator={false}>
         {activeStash && (
           <>
             <Pressable
@@ -325,7 +358,7 @@ export function StashBottomSheet({
             )}
           </>
         )}
-      </BottomSheetView>
+      </BottomSheetScrollView>
     </BottomSheet>
   );
 }
@@ -366,7 +399,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxl,
   },
   thumbWrap: {
     width: '100%',

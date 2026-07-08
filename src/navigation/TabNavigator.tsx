@@ -1,6 +1,10 @@
-import React from 'react';
-import {Platform, StyleSheet} from 'react-native';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
+import {Animated, Platform, StyleSheet} from 'react-native';
+import {
+  BottomTabBar,
+  createBottomTabNavigator,
+  type BottomTabBarProps,
+} from '@react-navigation/bottom-tabs';
 
 import {colors, elevation, fonts, radius} from '../lib/theme';
 import {MapScreen} from '../screens/MapScreen';
@@ -9,6 +13,10 @@ import {FriendsScreen} from '../screens/FriendsScreen';
 import {ProfileScreen} from '../screens/ProfileScreen';
 import {useIncomingRequestCount} from '../hooks/useFriends';
 import {Icon, type IconName} from '../components/Icon';
+import {
+  TabBarVisibilityProvider,
+  useTabBarVisibility,
+} from './tabBarVisibility';
 import type {TabParamList} from '../types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -38,6 +46,42 @@ function TabBarIcon({
   );
 }
 
+function FloatingTabBar(props: BottomTabBarProps): React.JSX.Element {
+  const {visible} = useTabBarVisibility();
+  const hiddenProgress = useRef(new Animated.Value(visible ? 0 : 1)).current;
+
+  useEffect(() => {
+    Animated.timing(hiddenProgress, {
+      toValue: visible ? 0 : 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [hiddenProgress, visible]);
+
+  const animatedStyle = {
+    opacity: hiddenProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 0],
+    }),
+    transform: [
+      {
+        translateY: hiddenProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 96],
+        }),
+      },
+    ],
+  };
+
+  return (
+    <Animated.View
+      pointerEvents={visible ? 'auto' : 'none'}
+      style={[styles.tabBar, animatedStyle]}>
+      <BottomTabBar {...props} />
+    </Animated.View>
+  );
+}
+
 /**
  * Floating parchment tab bar. It is absolutely positioned so the map renders
  * full-bleed behind it, satisfying "the map fills the entire screen behind the
@@ -45,31 +89,40 @@ function TabBarIcon({
  */
 export function TabNavigator(): React.JSX.Element {
   const incomingRequests = useIncomingRequestCount();
+  const [tabBarVisible, setTabBarVisible] = useState(true);
+  const tabBarVisibility = useMemo(
+    () => ({visible: tabBarVisible, setVisible: setTabBarVisible}),
+    [tabBarVisible],
+  );
+
   return (
-    <Tab.Navigator
-      screenOptions={({route}) => ({
-        headerShown: false,
-        tabBarShowLabel: true,
-        tabBarActiveTintColor: colors.ink,
-        tabBarInactiveTintColor: colors.inkMuted,
-        tabBarStyle: styles.tabBar,
-        tabBarLabelStyle: styles.tabLabel,
-        tabBarItemStyle: styles.tabItem,
-        tabBarIcon: ({focused}) => (
-          <TabBarIcon routeName={route.name} focused={focused} />
-        ),
-      })}>
-      <Tab.Screen name="Map" component={MapScreen} />
-      <Tab.Screen name="Saved" component={SavedScreen} />
-      <Tab.Screen
-        name="Friends"
-        component={FriendsScreen}
-        options={{
-          tabBarBadge: incomingRequests > 0 ? incomingRequests : undefined,
-        }}
-      />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-    </Tab.Navigator>
+    <TabBarVisibilityProvider value={tabBarVisibility}>
+      <Tab.Navigator
+        tabBar={props => <FloatingTabBar {...props} />}
+        screenOptions={({route}) => ({
+          headerShown: false,
+          tabBarShowLabel: true,
+          tabBarActiveTintColor: colors.ink,
+          tabBarInactiveTintColor: colors.inkMuted,
+          tabBarStyle: styles.tabBarInner,
+          tabBarLabelStyle: styles.tabLabel,
+          tabBarItemStyle: styles.tabItem,
+          tabBarIcon: ({focused}) => (
+            <TabBarIcon routeName={route.name} focused={focused} />
+          ),
+        })}>
+        <Tab.Screen name="Map" component={MapScreen} />
+        <Tab.Screen name="Saved" component={SavedScreen} />
+        <Tab.Screen
+          name="Friends"
+          component={FriendsScreen}
+          options={{
+            tabBarBadge: incomingRequests > 0 ? incomingRequests : undefined,
+          }}
+        />
+        <Tab.Screen name="Profile" component={ProfileScreen} />
+      </Tab.Navigator>
+    </TabBarVisibilityProvider>
   );
 }
 
@@ -85,9 +138,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     borderWidth: 1,
     borderColor: colors.border,
+    ...elevation.high,
+  },
+  tabBarInner: {
+    height: 64,
+    backgroundColor: 'transparent',
+    borderTopWidth: 0,
+    elevation: 0,
+    shadowOpacity: 0,
     paddingTop: 8,
     paddingBottom: 8,
-    ...elevation.high,
   },
   tabItem: {
     paddingVertical: 4,

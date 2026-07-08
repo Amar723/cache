@@ -23,6 +23,7 @@ import {useStashOverlap} from '../hooks/useOverlaps';
 import {friendLabel} from '../lib/overlap';
 import {navigationRef} from '../navigation/navigationRef';
 import type {Profile, Stash} from '../types';
+import {ConfirmDialog} from './ConfirmDialog';
 import {AppText, PrimaryButton} from './Themed';
 import {CATEGORY_ICON, Icon} from './Icon';
 
@@ -62,6 +63,7 @@ export function StashBottomSheet({
   const freshVisitedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [freshVisitedId, setFreshVisitedId] = useState<string | null>(null);
   const openRef = useRef(false);
   const onOpenChangeRef = useRef(onOpenChange);
@@ -170,31 +172,31 @@ export function StashBottomSheet({
     if (!stash) {
       return;
     }
-    Alert.alert(
-      'Delete this place?',
-      `"${stash.place_name}" will be removed from your Cache. This can't be undone.`,
-      [
-        {text: 'Cancel', style: 'cancel'},
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await deleteStash(stash.id);
-              onClose();
-            } catch (e) {
-              Alert.alert(
-                'Could not delete',
-                e instanceof Error ? e.message : 'Please try again.',
-              );
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ],
-    );
+    setConfirmingDelete(true);
+  }, [stash]);
+
+  const cancelDelete = useCallback(() => {
+    setConfirmingDelete(false);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!stash) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteStash(stash.id);
+      setConfirmingDelete(false);
+      onClose();
+    } catch (e) {
+      setConfirmingDelete(false);
+      Alert.alert(
+        'Could not delete',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    } finally {
+      setDeleting(false);
+    }
   }, [deleteStash, onClose, stash]);
 
   const renderBackdrop = useCallback(
@@ -359,6 +361,18 @@ export function StashBottomSheet({
           </>
         )}
       </BottomSheetScrollView>
+
+      {activeStash && (
+        <ConfirmDialog
+          visible={confirmingDelete}
+          title="Delete this place?"
+          message={`"${activeStash.place_name}" will be removed from your Cache. This can't be undone.`}
+          confirmLabel="Delete"
+          loading={deleting}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+        />
+      )}
     </BottomSheet>
   );
 }

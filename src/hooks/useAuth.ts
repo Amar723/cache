@@ -21,7 +21,7 @@ interface AuthState {
   status: AuthStatus;
   session: Session | null;
   profile: Profile | null;
-  // True between opening a password-recovery link and setting a new password;
+  // True between confirming a password-reset code and setting a new password;
   // the RootNavigator shows the update-password screen while it is set.
   recovering: boolean;
 }
@@ -127,42 +127,36 @@ export async function signOut(): Promise<void> {
 }
 
 /**
- * Send a password-reset email. The link opens the app at
- * `cache://auth/recovery` (allow this URL in Supabase → Auth → URL
- * Configuration → Redirect URLs), which `handleRecoveryLink` then completes.
+ * Send a password-reset email containing a one-time code (Supabase's "Reset
+ * Password" email template must use `{{ .Token }}` rather than the magic-link
+ * button — magic links get silently consumed by mail-provider link scanners
+ * before the user ever clicks them).
  */
 export async function requestPasswordReset(email: string): Promise<void> {
-  const {error} = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: 'cache://auth/recovery',
-  });
+  const {error} = await supabase.auth.resetPasswordForEmail(email.trim());
   if (error) {
     throw new Error(error.message);
   }
 }
 
 /**
- * Handle a `cache://auth/recovery#access_token=…&refresh_token=…` deep link.
- * Establishes the recovery session and flips the app into recovery mode so the
- * user can set a new password. Returns true if it was a recovery link.
+ * Confirm the one-time code emailed by `requestPasswordReset`. Establishes
+ * the recovery session and flips the app into recovery mode so the user can
+ * set a new password.
  */
-export async function handleRecoveryLink(url: string): Promise<boolean> {
-  if (!url.startsWith('cache://auth/recovery')) {
-    return false;
-  }
-  const fragment = url.split('#')[1] ?? '';
-  const params = new URLSearchParams(fragment);
-  const access_token = params.get('access_token');
-  const refresh_token = params.get('refresh_token');
-  const type = params.get('type');
-  if (!access_token || !refresh_token || type !== 'recovery') {
-    return false;
-  }
-  const {error} = await supabase.auth.setSession({access_token, refresh_token});
+export async function confirmPasswordResetCode(
+  email: string,
+  code: string,
+): Promise<void> {
+  const {error} = await supabase.auth.verifyOtp({
+    email: email.trim(),
+    token: code.trim(),
+    type: 'recovery',
+  });
   if (error) {
-    return false;
+    throw new Error(error.message);
   }
   store.setState({recovering: true});
-  return true;
 }
 
 /** Set a new password while in recovery mode, then leave recovery. */
@@ -324,6 +318,7 @@ export function useAuth() {
     completeOnboarding,
     refreshProfile,
     requestPasswordReset,
+    confirmPasswordResetCode,
     completePasswordReset,
     changePassword,
     deleteAccount,

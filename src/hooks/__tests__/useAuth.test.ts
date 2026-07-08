@@ -1,4 +1,4 @@
-import {changePassword, handleRecoveryLink, signUp} from '../useAuth';
+import {changePassword, confirmPasswordResetCode, signUp} from '../useAuth';
 import {supabase} from '../../lib/supabase';
 
 jest.mock('../../lib/supabase', () => ({
@@ -9,6 +9,7 @@ jest.mock('../../lib/supabase', () => ({
       signInWithPassword: jest.fn(),
       signUp: jest.fn(),
       updateUser: jest.fn(),
+      verifyOtp: jest.fn(),
     },
   },
 }));
@@ -19,6 +20,7 @@ const mockSetSession = supabase.auth.setSession as jest.Mock;
 const mockSignInWithPassword = supabase.auth.signInWithPassword as jest.Mock;
 const mockSignUp = supabase.auth.signUp as jest.Mock;
 const mockUpdateUser = supabase.auth.updateUser as jest.Mock;
+const mockVerifyOtp = supabase.auth.verifyOtp as jest.Mock;
 
 const session = {
   access_token: 'OLD_ACCESS',
@@ -26,47 +28,31 @@ const session = {
   user: {id: 'user-1', email: 'user@example.com'},
 } as any;
 
-describe('handleRecoveryLink', () => {
+describe('confirmPasswordResetCode', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSetSession.mockResolvedValue({error: null});
+    mockVerifyOtp.mockResolvedValue({error: null});
   });
 
-  it('ignores links that are not recovery links', async () => {
-    expect(await handleRecoveryLink('cache://share?url=x')).toBe(false);
-    expect(mockSetSession).not.toHaveBeenCalled();
-  });
-
-  it('ignores a recovery link missing its tokens', async () => {
-    expect(await handleRecoveryLink('cache://auth/recovery')).toBe(false);
-    expect(mockSetSession).not.toHaveBeenCalled();
-  });
-
-  it('ignores token links that are not password recovery links', async () => {
-    const url =
-      'cache://auth/recovery#access_token=AAA&refresh_token=BBB&type=signup';
-
-    expect(await handleRecoveryLink(url)).toBe(false);
-    expect(mockSetSession).not.toHaveBeenCalled();
-  });
-
-  it('establishes the recovery session from the URL fragment', async () => {
-    const url =
-      'cache://auth/recovery#access_token=AAA&refresh_token=BBB&type=recovery';
-
-    expect(await handleRecoveryLink(url)).toBe(true);
-    expect(mockSetSession).toHaveBeenCalledWith({
-      access_token: 'AAA',
-      refresh_token: 'BBB',
+  it('verifies the code and establishes the recovery session', async () => {
+    await expect(
+      confirmPasswordResetCode(' user@example.com ', ' 123456 '),
+    ).resolves.toBeUndefined();
+    expect(mockVerifyOtp).toHaveBeenCalledWith({
+      email: 'user@example.com',
+      token: '123456',
+      type: 'recovery',
     });
   });
 
-  it('reports failure when setSession errors', async () => {
-    mockSetSession.mockResolvedValue({error: {message: 'bad token'}});
-    const url =
-      'cache://auth/recovery#access_token=AAA&refresh_token=BBB&type=recovery';
+  it('throws when the code is invalid or expired', async () => {
+    mockVerifyOtp.mockResolvedValue({
+      error: {message: 'Token has expired or is invalid'},
+    });
 
-    expect(await handleRecoveryLink(url)).toBe(false);
+    await expect(
+      confirmPasswordResetCode('user@example.com', '000000'),
+    ).rejects.toThrow('Token has expired or is invalid');
   });
 });
 

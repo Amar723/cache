@@ -1,5 +1,5 @@
 import React, {useEffect, useRef} from 'react';
-import {ActivityIndicator, Linking, StyleSheet, View} from 'react-native';
+import {ActivityIndicator, StyleSheet, View} from 'react-native';
 import {
   DefaultTheme,
   NavigationContainer,
@@ -9,7 +9,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 
 import {colors} from '../lib/theme';
 import {handleInitialShare, subscribeToShares} from '../lib/share';
-import {handleRecoveryLink, useAuth} from '../hooks/useAuth';
+import {useAuth} from '../hooks/useAuth';
 import {AuthScreen} from '../screens/AuthScreen';
 import {OnboardingScreen} from '../screens/OnboardingScreen';
 import {AddStashScreen} from '../screens/AddStashScreen';
@@ -61,20 +61,6 @@ export function RootNavigator(): React.JSX.Element {
     handleInitialShare(openAddStash);
     const unsubscribe = subscribeToShares(openAddStash);
     return unsubscribe;
-  }, []);
-
-  // Catch password-recovery deep links (cache://auth/recovery). These don't
-  // carry a `url=` param, so the share handler ignores them.
-  useEffect(() => {
-    Linking.getInitialURL().then(url => {
-      if (url) {
-        handleRecoveryLink(url);
-      }
-    });
-    const sub = Linking.addEventListener('url', ({url}) => {
-      handleRecoveryLink(url);
-    });
-    return () => sub.remove();
   }, []);
 
   // Replay a held share when the user becomes ready.

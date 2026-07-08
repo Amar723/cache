@@ -182,9 +182,12 @@ In the Supabase dashboard:
    **OFF** for the MVP so sign-up returns a live session and goes straight to
    onboarding. (If you leave it on, sign-up shows a "check your email" message
    and the user logs in after confirming — the app handles both.)
-4. **Authentication → URL Configuration → Redirect URLs**: add
-   `cache://auth/recovery` so the "Forgot password" email link opens the app's
-   set-new-password screen.
+4. **Authentication → Email Templates → Reset Password**: edit the template to
+   show the one-time code (`{{ .Token }}`) instead of the magic-link button —
+   e.g. "Your code is {{ .Token }}". The app has the user type this code in
+   rather than tapping a link, since mail-provider link scanners (Gmail's Safe
+   Browsing, etc.) silently consume magic-link tokens before the user ever
+   clicks them.
 5. **Places proxy (Edge Function)** — address autocomplete is proxied so the
    Places API key never ships in the app. Deploy it and set the secret:
    ```bash

@@ -14,7 +14,7 @@ import {useAuth} from '../hooks/useAuth';
 import {AppText, PrimaryButton} from '../components/Themed';
 
 /**
- * Shown after a password-recovery link is opened (see `handleRecoveryLink`).
+ * Shown after a password-reset code is confirmed (see `confirmPasswordResetCode`).
  * The user is already recovery-authenticated, so this just sets a new password
  * and then drops back into the app.
  */

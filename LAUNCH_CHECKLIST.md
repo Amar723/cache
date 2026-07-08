@@ -24,8 +24,10 @@ Re-run these after any change before you build.
 - [ ] Auth → Providers → **Email** enabled
 - [ ] Auth → Email → **"Confirm email" OFF** (or accept the "check your email"
       flow — the app handles both)
-- [ ] Auth → URL Configuration → **Redirect URLs** → add `cache://auth/recovery`
-      (password reset)
+- [ ] Auth → Email Templates → **Reset Password** → use `{{ .Token }}` (a code
+      the user types in-app) instead of the magic-link button — magic links
+      get silently consumed by mail-provider link scanners before the user
+      clicks them
 - [ ] Deploy the Places proxy so the key stays server-side:
   ```bash
   supabase secrets set GOOGLE_PLACES_API_KEY=your-places-key

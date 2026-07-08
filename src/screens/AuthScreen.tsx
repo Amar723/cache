@@ -15,17 +15,23 @@ import {useAuth} from '../hooks/useAuth';
 import {AppText, PrimaryButton} from '../components/Themed';
 
 type Mode = 'login' | 'signup';
+type ResetStep = 'idle' | 'codeSent';
 
 /**
  * Email/password auth. A successful sign-in/up flips the auth store status,
  * and the RootNavigator swaps this screen for Onboarding or Tabs — so this
- * screen never navigates imperatively.
+ * screen never navigates imperatively. Password reset works the same way:
+ * confirming the emailed code flips the store into recovery mode, and the
+ * RootNavigator swaps this screen for the update-password screen.
  */
 export function AuthScreen(): React.JSX.Element {
-  const {signIn, signUp, requestPasswordReset} = useAuth();
+  const {signIn, signUp, requestPasswordReset, confirmPasswordResetCode} =
+    useAuth();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [resetStep, setResetStep] = useState<ResetStep>('idle');
+  const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -63,12 +69,38 @@ export function AuthScreen(): React.JSX.Element {
       setError('Enter your email above first, then tap “Forgot password”.');
       return;
     }
+    setBusy(true);
     try {
       await requestPasswordReset(email);
-      setInfo('Check your email for a link to reset your password.');
+      setResetStep('codeSent');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not send reset email.');
+    } finally {
+      setBusy(false);
     }
+  };
+
+  const confirmCode = async () => {
+    setError(null);
+    if (!code.trim()) {
+      setError('Enter the code from your email.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await confirmPasswordResetCode(email, code);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invalid or expired code.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelReset = () => {
+    setResetStep('idle');
+    setCode('');
+    setError(null);
+    setInfo(null);
   };
 
   return (
@@ -86,73 +118,113 @@ export function AuthScreen(): React.JSX.Element {
             </AppText>
           </View>
 
-          <View style={styles.form}>
-            <AppText variant="bold" style={styles.label}>
-              Email
-            </AppText>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              placeholderTextColor={colors.inkMuted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              style={styles.input}
-            />
-
-            <AppText variant="bold" style={[styles.label, styles.spaced]}>
-              Password
-            </AppText>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              placeholderTextColor={colors.inkMuted}
-              secureTextEntry
-              style={styles.input}
-            />
-
-            {error ? (
-              <AppText variant="medium" style={styles.error}>
-                {error}
+          {resetStep === 'codeSent' ? (
+            <View style={styles.form}>
+              <AppText variant="bold" style={styles.label}>
+                Reset code
               </AppText>
-            ) : null}
-            {info ? (
-              <AppText variant="medium" style={styles.info}>
-                {info}
+              <AppText variant="body" style={styles.tagline}>
+                Enter the code we emailed to {email}.
               </AppText>
-            ) : null}
+              <TextInput
+                value={code}
+                onChangeText={setCode}
+                placeholder="123456"
+                placeholderTextColor={colors.inkMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="number-pad"
+                style={[styles.input, styles.spaced]}
+              />
 
-            <PrimaryButton
-              title={mode === 'login' ? 'Log in' : 'Create account'}
-              onPress={submit}
-              loading={busy}
-              style={styles.submit}
-            />
+              {error ? (
+                <AppText variant="medium" style={styles.error}>
+                  {error}
+                </AppText>
+              ) : null}
 
-            {mode === 'login' ? (
-              <Pressable onPress={forgotPassword} style={styles.forgot}>
+              <PrimaryButton
+                title="Confirm code"
+                onPress={confirmCode}
+                loading={busy}
+                style={styles.submit}
+              />
+
+              <Pressable onPress={cancelReset} style={styles.switch}>
                 <AppText variant="medium" style={styles.switchText}>
-                  Forgot password?
+                  Back to log in
                 </AppText>
               </Pressable>
-            ) : null}
-
-            <Pressable
-              onPress={() => {
-                setMode(mode === 'login' ? 'signup' : 'login');
-                setError(null);
-                setInfo(null);
-              }}
-              style={styles.switch}>
-              <AppText variant="medium" style={styles.switchText}>
-                {mode === 'login'
-                  ? "Don't have an account? Sign up"
-                  : 'Already have an account? Log in'}
+            </View>
+          ) : (
+            <View style={styles.form}>
+              <AppText variant="bold" style={styles.label}>
+                Email
               </AppText>
-            </Pressable>
-          </View>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                placeholderTextColor={colors.inkMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                style={styles.input}
+              />
+
+              <AppText variant="bold" style={[styles.label, styles.spaced]}>
+                Password
+              </AppText>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                placeholderTextColor={colors.inkMuted}
+                secureTextEntry
+                style={styles.input}
+              />
+
+              {error ? (
+                <AppText variant="medium" style={styles.error}>
+                  {error}
+                </AppText>
+              ) : null}
+              {info ? (
+                <AppText variant="medium" style={styles.info}>
+                  {info}
+                </AppText>
+              ) : null}
+
+              <PrimaryButton
+                title={mode === 'login' ? 'Log in' : 'Create account'}
+                onPress={submit}
+                loading={busy}
+                style={styles.submit}
+              />
+
+              {mode === 'login' ? (
+                <Pressable onPress={forgotPassword} style={styles.forgot}>
+                  <AppText variant="medium" style={styles.switchText}>
+                    Forgot password?
+                  </AppText>
+                </Pressable>
+              ) : null}
+
+              <Pressable
+                onPress={() => {
+                  setMode(mode === 'login' ? 'signup' : 'login');
+                  setError(null);
+                  setInfo(null);
+                }}
+                style={styles.switch}>
+                <AppText variant="medium" style={styles.switchText}>
+                  {mode === 'login'
+                    ? "Don't have an account? Sign up"
+                    : 'Already have an account? Log in'}
+                </AppText>
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

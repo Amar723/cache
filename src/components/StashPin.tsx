@@ -18,7 +18,7 @@ interface StashPinProps {
  * A custom map marker: the TikTok thumbnail as a small rounded square, with
  * the saved place's name in a small label underneath.
  *  - Unvisited → neutral border.
- *  - Visited   → green border with a ✓ badge in the bottom-right corner.
+ *  - Visited   → green border around the thumbnail, tail, and label.
  *
  * `tracksViewChanges` is expensive to leave on, but on iOS the marker image is
  * blank if we disable it before the thumbnail finishes loading. We therefore
@@ -79,19 +79,9 @@ export function StashPin({
             </View>
           )}
         </View>
-        {visited && (
-          <View style={styles.badge}>
-            <Icon
-              name="check"
-              size={12}
-              color={colors.background}
-              strokeWidth={2.5}
-            />
-          </View>
-        )}
         {/* The little pointer "tail" under the square. */}
         <View style={[styles.tail, visited && styles.tailVisited]} />
-        <View style={styles.labelWrap}>
+        <View style={[styles.labelWrap, visited && styles.labelWrapVisited]}>
           <Text style={styles.label} numberOfLines={1}>
             {stash.place_name}
           </Text>
@@ -101,8 +91,6 @@ export function StashPin({
   );
 }
 
-// Rendered as a static checkmark via text would require font tracking; using a
-// drawn tick keeps the marker crisp regardless of tracksViewChanges timing.
 const styles = StyleSheet.create({
   pin: {
     alignItems: 'center',
@@ -156,24 +144,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  labelWrapVisited: {
+    borderColor: colors.success,
+  },
   label: {
     fontFamily: fonts.serif,
     fontSize: 11,
     color: colors.ink,
     textAlign: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    right: -4,
-    bottom: 6,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.success,
-    borderWidth: 2,
-    borderColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   friendBadge: {
     position: 'absolute',

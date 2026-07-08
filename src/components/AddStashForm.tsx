@@ -1,6 +1,7 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -30,6 +31,8 @@ import {loadLastLocation} from '../lib/lastLocation';
 import {resolveDetectedPlace, type PlaceSelection} from '../lib/places';
 import type {LatLng} from '../lib/distance';
 import {createStash, updateStash, useStashes} from '../hooks/useStashes';
+import {useItineraries} from '../hooks/useItineraries';
+import {addStashToTrip} from '../hooks/useTripStashes';
 import {
   type Category,
   type OpeningHours,
@@ -52,6 +55,8 @@ interface AddStashFormProps {
    * field is pre-filled and Save writes back via `updateStash`.
    */
   editStash?: Stash | null;
+  /** Pre-selects this trip in the "Add to a trip" row (new saves only). */
+  initialTripId?: string | null;
   onSubmitted: () => void;
 }
 
@@ -67,6 +72,7 @@ export function AddStashForm({
   sharedUrl,
   manual = false,
   editStash = null,
+  initialTripId = null,
   onSubmitted,
 }: AddStashFormProps): React.JSX.Element {
   const editing = editStash != null;
@@ -105,6 +111,11 @@ export function AddStashForm({
   const [visibility, setVisibility] = useState<Visibility>(
     editStash?.visibility ?? 'friends',
   );
+
+  // Which trip (if any) the new stash is also added to. Only offered when the
+  // user has trips, and never in edit mode (trips manage their own entries).
+  const {trips} = useItineraries();
+  const [tripId, setTripId] = useState<string | null>(initialTripId);
 
   // The user's last known location, used to bias address search toward nearby
   // places. Read from cache (no permission prompt); null until/unless available.
@@ -322,7 +333,18 @@ export function AddStashForm({
       if (editStash) {
         await updateStash(editStash.id, draft);
       } else {
-        await createStash(draft);
+        const created = await createStash(draft);
+        if (tripId) {
+          // Non-fatal: the stash itself saved fine either way.
+          try {
+            await addStashToTrip(tripId, created.id);
+          } catch (e) {
+            Alert.alert(
+              'Saved, but not added to the trip',
+              e instanceof Error ? e.message : 'You can add it from the trip.',
+            );
+          }
+        }
       }
       onSubmitted();
     } catch (e) {
@@ -470,6 +492,42 @@ export function AddStashForm({
     </Field>
   );
 
+  // Offered on new saves when the user has trips; a chip per trip, tap to
+  // toggle. Members of that trip will see the place regardless of visibility.
+  const tripField =
+    !editing && trips.length > 0 ? (
+      <Field label="Add to a trip (optional)">
+        <View style={styles.tripChips}>
+          {trips.map(trip => {
+            const active = tripId === trip.itinerary.id;
+            return (
+              <Pressable
+                key={trip.itinerary.id}
+                onPress={() =>
+                  setTripId(current =>
+                    current === trip.itinerary.id ? null : trip.itinerary.id,
+                  )
+                }
+                style={[styles.tripChip, active && styles.tripChipActive]}
+                accessibilityRole="button"
+                accessibilityState={{selected: active}}>
+                <AppText
+                  variant={active ? 'bold' : 'medium'}
+                  style={active ? styles.tripChipTextActive : undefined}>
+                  {trip.itinerary.name}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+        {tripId ? (
+          <AppText variant="caption" style={styles.segmentHint}>
+            Everyone on the trip will see this place.
+          </AppText>
+        ) : null}
+      </Field>
+    ) : null;
+
   const visibilityField = (
     <Field label="Who can see this?">
       <View style={styles.segment}>
@@ -515,6 +573,7 @@ export function AddStashForm({
             {addressField}
             {categoryField}
             {notesField}
+            {tripField}
             {visibilityField}
             {linkField}
           </>
@@ -525,6 +584,7 @@ export function AddStashForm({
             {addressField}
             {categoryField}
             {notesField}
+            {tripField}
             {visibilityField}
           </>
         )}
@@ -675,5 +735,25 @@ const styles = StyleSheet.create({
   },
   segmentHint: {
     marginTop: spacing.sm,
+  },
+  tripChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  tripChip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  tripChipActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  tripChipTextActive: {
+    color: colors.onAccent,
   },
 });

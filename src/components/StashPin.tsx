@@ -12,6 +12,8 @@ interface StashPinProps {
   onPress: (stash: Stash) => void;
   /** How many friends have also saved this place (0 = none). */
   friendCount?: number;
+  /** The trip this pin belongs to (e.g. "Sydney trip"), shown as a small flag. */
+  tripLabel?: string | null;
 }
 
 /**
@@ -28,6 +30,7 @@ export function StashPin({
   stash,
   onPress,
   friendCount = 0,
+  tripLabel = null,
 }: StashPinProps): React.JSX.Element {
   const visited = stash.visited_at !== null;
   const {uri, onError} = useThumbnailUri(stash);
@@ -38,9 +41,12 @@ export function StashPin({
       coordinate={{latitude: stash.lat, longitude: stash.lng}}
       onPress={() => onPress(stash)}
       tracksViewChanges={
-        // A friend badge changes the rendered marker, so keep tracking until the
-        // image settles regardless of platform when one is present.
-        Platform.OS === 'ios' || friendCount > 0 ? !imageSettled : false
+        // A friend badge or trip flag changes the rendered marker, so keep
+        // tracking until the image settles regardless of platform when one is
+        // present.
+        Platform.OS === 'ios' || friendCount > 0 || tripLabel != null
+          ? !imageSettled
+          : false
       }
       // The view now extends well below the thumbnail (tail + name label), so
       // anchoring at the vertical center (0.5) would drag the thumbnail away
@@ -48,6 +54,13 @@ export function StashPin({
       // pin location, with the tail and label hanging below it as a caption.
       anchor={{x: 0.5, y: 0.32}}>
       <View style={styles.pin}>
+        {tripLabel != null && (
+          <View style={styles.tripFlag}>
+            <Text style={styles.tripFlagText} numberOfLines={1}>
+              {tripLabel}
+            </Text>
+          </View>
+        )}
         {friendCount > 0 && (
           <View style={styles.friendBadge}>
             <Icon
@@ -171,5 +184,24 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontSize: 10,
     fontWeight: '700',
+  },
+  // A little flag floating above the thumbnail naming the pin's trip. Kept
+  // absolute so it never shifts the thumbnail off the anchored coordinate.
+  tripFlag: {
+    position: 'absolute',
+    top: -18,
+    zIndex: 2,
+    maxWidth: 90,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+    borderWidth: 1.5,
+    borderColor: colors.background,
+  },
+  tripFlagText: {
+    fontFamily: fonts.medium,
+    fontSize: 9.5,
+    color: colors.onAccent,
   },
 });

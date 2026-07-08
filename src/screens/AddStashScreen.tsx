@@ -22,14 +22,16 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AddStash'>;
  */
 export function AddStashScreen({route, navigation}: Props): React.JSX.Element {
   const sharedUrl = route.params?.sharedUrl ?? '';
+  const addToItineraryId = route.params?.addToItineraryId ?? null;
   const editStash = useStash(route.params?.stashId ?? null);
   const editing = editStash != null;
   const manual = sharedUrl.length === 0;
 
   const handleSubmitted = () => {
-    // After an edit, return to wherever the user opened the sheet from (the
-    // store already updated in place). A new save lands them on the Map.
-    if (editing && navigation.canGoBack()) {
+    // After an edit — or a save started from a trip — return to wherever the
+    // user came from (the trip screen refreshes on focus). A plain new save
+    // lands them on the Map.
+    if ((editing || addToItineraryId) && navigation.canGoBack()) {
       navigation.goBack();
       return;
     }
@@ -54,7 +56,13 @@ export function AddStashScreen({route, navigation}: Props): React.JSX.Element {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <AppText variant="serifTitle">
-          {editing ? 'Edit place' : manual ? 'Add a place' : 'Add to Cache'}
+          {editing
+            ? 'Edit place'
+            : addToItineraryId
+            ? 'Add to trip'
+            : manual
+            ? 'Add a place'
+            : 'Add to Cache'}
         </AppText>
         <Pressable
           onPress={handleClose}
@@ -69,6 +77,7 @@ export function AddStashScreen({route, navigation}: Props): React.JSX.Element {
         sharedUrl={sharedUrl}
         manual={manual}
         editStash={editStash}
+        initialTripId={addToItineraryId}
         onSubmitted={handleSubmitted}
       />
     </SafeAreaView>

@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {ActivityIndicator, Pressable, StyleSheet, View} from 'react-native';
 import MapView, {
   type MapStyleElement,
@@ -18,6 +18,10 @@ import {
 import {useStashes, getStashById, refreshStashes} from '../hooks/useStashes';
 import {useLocation} from '../hooks/useLocation';
 import {reconcileFriendOverlaps, useOverlapMap} from '../hooks/useOverlaps';
+import {useItineraries} from '../hooks/useItineraries';
+import {refreshTripStashes, useAllTripEntries} from '../hooks/useTripStashes';
+import {buildMapPins, type MapPin} from '../lib/trips';
+import {currentUserId} from '../hooks/useAuth';
 import {
   consumePendingStash,
   subscribeOpenStash,
@@ -26,7 +30,6 @@ import {StashPin} from '../components/StashPin';
 import {StashBottomSheet} from '../components/StashBottomSheet';
 import {AppText} from '../components/Themed';
 import {Icon} from '../components/Icon';
-import type {Stash} from '../types';
 
 // Last-resort region, only used if we get neither a location nor any pins
 // within a few seconds (e.g. permission denied on a fresh install).
@@ -52,12 +55,24 @@ function regionFor(point: {lat: number; lng: number}, delta = 0.05): Region {
  */
 export function MapScreen(): React.JSX.Element {
   const {stashes} = useStashes();
+  const {trips} = useItineraries();
+  const tripEntries = useAllTripEntries();
   const {location} = useLocation();
   const overlaps = useOverlapMap();
   const mapRef = useRef<MapView>(null);
   const didInitialCenter = useRef(false);
-  const [selected, setSelected] = useState<Stash | null>(null);
+  const [selected, setSelected] = useState<MapPin | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const myId = currentUserId();
+
+  // Your own pins plus every place in your trips (deduped), each trip pin
+  // carrying its trip's name for the little flag above the marker.
+  const pins = useMemo(() => {
+    const tripNameById = new Map(
+      trips.map(t => [t.itinerary.id, t.itinerary.name]),
+    );
+    return buildMapPins(stashes, tripEntries, tripNameById);
+  }, [stashes, trips, tripEntries]);
 
   // The region the map first lays out at. Held until we can open *at the user*
   // (cached or live location) or at their first pin — rather than flashing a
@@ -97,6 +112,7 @@ export function MapScreen(): React.JSX.Element {
   useFocusEffect(
     useCallback(() => {
       refreshStashes().then(() => reconcileFriendOverlaps());
+      refreshTripStashes();
     }, []),
   );
 
@@ -117,7 +133,7 @@ export function MapScreen(): React.JSX.Element {
     }
     const target = getStashById(pendingId);
     if (target) {
-      setSelected(target);
+      setSelected({stash: target, tripLabel: null, addedBy: null});
       mapRef.current?.animateToRegion(
         {
           latitude: target.lat,
@@ -184,12 +200,13 @@ export function MapScreen(): React.JSX.Element {
           showsUserLocation
           showsMyLocationButton={false}
           toolbarEnabled={false}>
-          {stashes.map(stash => (
+          {pins.map(pin => (
             <StashPin
-              key={stash.id}
-              stash={stash}
-              onPress={setSelected}
-              friendCount={overlaps[stash.id]?.length ?? 0}
+              key={pin.stash.id}
+              stash={pin.stash}
+              onPress={() => setSelected(pin)}
+              friendCount={overlaps[pin.stash.id]?.length ?? 0}
+              tripLabel={pin.tripLabel}
             />
           ))}
         </MapView>
@@ -209,7 +226,7 @@ export function MapScreen(): React.JSX.Element {
               Your Cache
             </AppText>
             <AppText variant="caption">
-              {stashes.length} {stashes.length === 1 ? 'place' : 'places'}
+              {pins.length} {pins.length === 1 ? 'place' : 'places'}
             </AppText>
           </View>
         </View>
@@ -228,7 +245,7 @@ export function MapScreen(): React.JSX.Element {
         </View>
       </SafeAreaView>
 
-      {stashes.length === 0 && (
+      {pins.length === 0 && (
         <View style={styles.emptyHint} pointerEvents="none">
           <View style={styles.emptyPill}>
             <View style={styles.emptyIcon}>
@@ -241,7 +258,14 @@ export function MapScreen(): React.JSX.Element {
         </View>
       )}
 
-      <StashBottomSheet stash={selected} onClose={() => setSelected(null)} />
+      <StashBottomSheet
+        stash={selected?.stash ?? null}
+        onClose={() => setSelected(null)}
+        readOnly={selected !== null && selected.stash.user_id !== myId}
+        addedBy={
+          selected && selected.stash.user_id !== myId ? selected.addedBy : null
+        }
+      />
     </View>
   );
 }

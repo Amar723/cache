@@ -10,6 +10,8 @@ import {requestNotificationPermissions} from './src/lib/notifications';
 import {initAuth, useAuth} from './src/hooks/useAuth';
 import {clearStashes, refreshStashes} from './src/hooks/useStashes';
 import {clearFriends, refreshFriends} from './src/hooks/useFriends';
+import {clearItineraries, refreshItineraries} from './src/hooks/useItineraries';
+import {clearTripStashes, refreshTripStashes} from './src/hooks/useTripStashes';
 import {clearOverlaps, reconcileFriendOverlaps} from './src/hooks/useOverlaps';
 import {useGeofenceSync} from './src/hooks/useGeofenceSync';
 import {primeLocation} from './src/hooks/useLocation';
@@ -64,13 +66,18 @@ function App(): React.JSX.Element {
   useEffect(() => {
     if (status === 'ready') {
       primeLocation();
-      // Load my pins + friends, then check for places we've both saved.
-      Promise.all([refreshStashes(), refreshFriends()]).then(() =>
-        reconcileFriendOverlaps(),
-      );
+      // Load my pins + friends + trips, then check for places we've both saved.
+      Promise.all([
+        refreshStashes(),
+        refreshFriends(),
+        refreshItineraries(),
+        refreshTripStashes(),
+      ]).then(() => reconcileFriendOverlaps());
     } else if (status === 'signedOut') {
       clearStashes();
       clearFriends();
+      clearItineraries();
+      clearTripStashes();
       clearOverlaps();
     }
   }, [status]);

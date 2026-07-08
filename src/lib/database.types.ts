@@ -95,6 +95,65 @@ export type ProfileInsert = Omit<ProfileRow, 'created_at'> & {
   created_at?: string;
 };
 
+/**
+ * Phase 3 (trips): the invite lifecycle of an itinerary member. Declining an
+ * invite deletes the row, so there is no 'declined' state; the owner has no
+ * row at all (ownership is implicit membership).
+ */
+export type ItineraryMemberStatus = 'pending' | 'accepted';
+
+export interface ItineraryRow {
+  id: string;
+  owner_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ItineraryInsert = {
+  owner_id: string;
+  name: string;
+  id?: string;
+};
+
+export interface ItineraryMemberRow {
+  id: string;
+  itinerary_id: string;
+  user_id: string;
+  status: ItineraryMemberStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ItineraryMemberInsert = {
+  itinerary_id: string;
+  user_id: string;
+  status?: ItineraryMemberStatus;
+};
+
+/**
+ * A stash shared into a trip. `scheduled_date` ('YYYY-MM-DD') and
+ * `scheduled_time` ('HH:MM:SS') are destination wall-clock — never convert
+ * them through Date/UTC or the day can shift.
+ */
+export interface ItineraryStashRow {
+  id: string;
+  itinerary_id: string;
+  stash_id: string;
+  added_by: string;
+  scheduled_date: string | null;
+  scheduled_time: string | null;
+  created_at: string;
+}
+
+export type ItineraryStashInsert = {
+  itinerary_id: string;
+  stash_id: string;
+  added_by: string;
+  scheduled_date?: string | null;
+  scheduled_time?: string | null;
+};
+
 export interface Database {
   public: {
     Tables: {
@@ -114,6 +173,24 @@ export interface Database {
         Row: FriendshipRow;
         Insert: FriendshipInsert;
         Update: Partial<FriendshipInsert>;
+        Relationships: [];
+      };
+      itineraries: {
+        Row: ItineraryRow;
+        Insert: ItineraryInsert;
+        Update: Partial<ItineraryInsert>;
+        Relationships: [];
+      };
+      itinerary_members: {
+        Row: ItineraryMemberRow;
+        Insert: ItineraryMemberInsert;
+        Update: Partial<ItineraryMemberInsert>;
+        Relationships: [];
+      };
+      itinerary_stashes: {
+        Row: ItineraryStashRow;
+        Insert: ItineraryStashInsert;
+        Update: Partial<ItineraryStashInsert>;
         Relationships: [];
       };
     };

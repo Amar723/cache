@@ -1,5 +1,6 @@
 -- Cache — account deletion.
--- Run after schema.sql / rls.sql / friends.sql, once, in the SQL editor.
+-- Run after schema.sql / rls.sql / friends.sql / itineraries.sql, once, in the
+-- SQL editor.
 --
 -- A client can't delete its own auth.users row (that needs elevated rights), so
 -- we expose a SECURITY DEFINER function that wipes the caller's data and account
@@ -20,6 +21,10 @@ begin
   end if;
 
   -- Delete owned data first (no ON DELETE CASCADE from stashes/profiles).
+  -- Trips they own cascade to members + entries; leaving other trips triggers
+  -- removal of their entries there; deleting stashes cascades any leftovers.
+  delete from itineraries where owner_id = uid;
+  delete from itinerary_members where user_id = uid;
   delete from stashes where user_id = uid;
   delete from friendships where requester_id = uid or addressee_id = uid;
   delete from profiles where id = uid;

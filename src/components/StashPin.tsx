@@ -46,6 +46,33 @@ export function StashPin({
   const [imageSettled, setImageSettled] = useState(uri === null);
   const [pulseActive, setPulseActive] = useState(false);
 
+  // A new `uri` means the stash now points at a different thumbnail (e.g. the
+  // linked video was changed on edit, or a stale CDN link was refreshed).
+  // Without this, `imageSettled` would still be `true` from the previous
+  // image and the marker would stay frozen on the old bitmap forever.
+  useEffect(() => {
+    setImageSettled(uri === null);
+  }, [uri]);
+
+  // react-native-maps freezes a custom Marker into a static bitmap once
+  // tracksViewChanges goes false, so editing a stash's name (or visited
+  // state, or picking up a new friend) after the thumbnail has already
+  // settled would otherwise leave the on-map pin showing stale content.
+  // Force one more redraw whenever the visible content changes.
+  const contentSignature = `${stash.place_name}|${visited}|${friendCount}`;
+  const lastContentSignature = useRef(contentSignature);
+  const [contentChanged, setContentChanged] = useState(false);
+
+  useEffect(() => {
+    if (lastContentSignature.current === contentSignature) {
+      return;
+    }
+    lastContentSignature.current = contentSignature;
+    setContentChanged(true);
+    const frame = requestAnimationFrame(() => setContentChanged(false));
+    return () => cancelAnimationFrame(frame);
+  }, [contentSignature]);
+
   useEffect(() => {
     if (visitedPulseKey === 0) {
       return;
@@ -84,6 +111,7 @@ export function StashPin({
         // A friend badge changes the rendered marker, so keep tracking until the
         // image settles regardless of platform when one is present.
         pulseActive ||
+        contentChanged ||
         (Platform.OS === 'ios' || friendCount > 0 ? !imageSettled : false)
       }
       // The view now extends well below the thumbnail (tail + name label), so

@@ -106,16 +106,22 @@ export type RootStackParamList = {
   Onboarding: undefined;
   UpdatePassword: undefined;
   Tabs: {screen?: keyof TabParamList} | undefined;
-  // `sharedUrl` from a share; `stashId` opens the form in edit mode. Neither =
-  // manual add.
-  AddStash: {sharedUrl?: string; stashId?: string} | undefined;
+  // `sharedUrl` from a share; `stashId` opens the form in edit mode;
+  // `addToItineraryId` = manual add from a trip, saved into that trip.
+  // None = manual add.
+  AddStash:
+    | {sharedUrl?: string; stashId?: string; addToItineraryId?: string}
+    | undefined;
   // A friend's read-only map.
   FriendMap: {friendId: string; username: string};
+  // One trip: its small map plus the date-grouped stash list.
+  TripDetail: {itineraryId: string};
 };
 
 export type TabParamList = {
   Map: {focusStashId?: string} | undefined;
   Saved: {focusStashId?: string} | undefined;
+  Trips: undefined;
   Friends: undefined;
   Profile: undefined;
 };

@@ -5,9 +5,11 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {colors, elevation, fonts, radius} from '../lib/theme';
 import {MapScreen} from '../screens/MapScreen';
 import {SavedScreen} from '../screens/SavedScreen';
+import {TripsScreen} from '../screens/TripsScreen';
 import {FriendsScreen} from '../screens/FriendsScreen';
 import {ProfileScreen} from '../screens/ProfileScreen';
 import {useIncomingRequestCount} from '../hooks/useFriends';
+import {useTripInviteCount} from '../hooks/useItineraries';
 import {Icon, type IconName} from '../components/Icon';
 import type {TabParamList} from '../types';
 
@@ -16,6 +18,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const ICONS: Record<keyof TabParamList, IconName> = {
   Map: 'map',
   Saved: 'bookmark',
+  Trips: 'suitcase',
   Friends: 'users',
   Profile: 'user',
 };
@@ -45,6 +48,7 @@ function TabBarIcon({
  */
 export function TabNavigator(): React.JSX.Element {
   const incomingRequests = useIncomingRequestCount();
+  const tripInvites = useTripInviteCount();
   return (
     <Tab.Navigator
       screenOptions={({route}) => ({
@@ -61,6 +65,13 @@ export function TabNavigator(): React.JSX.Element {
       })}>
       <Tab.Screen name="Map" component={MapScreen} />
       <Tab.Screen name="Saved" component={SavedScreen} />
+      <Tab.Screen
+        name="Trips"
+        component={TripsScreen}
+        options={{
+          tabBarBadge: tripInvites > 0 ? tripInvites : undefined,
+        }}
+      />
       <Tab.Screen
         name="Friends"
         component={FriendsScreen}

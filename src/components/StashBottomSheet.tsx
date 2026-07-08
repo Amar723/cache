@@ -24,6 +24,8 @@ interface StashBottomSheetProps {
   onClose: () => void;
   /** A friend's pin: show details + "Watch", but no owner actions. */
   readOnly?: boolean;
+  /** Who shared this stash into a trip; shows an "Added by" row when set. */
+  addedBy?: Profile | null;
 }
 
 /**
@@ -35,6 +37,7 @@ export function StashBottomSheet({
   stash,
   onClose,
   readOnly = false,
+  addedBy = null,
 }: StashBottomSheetProps): React.JSX.Element {
   const sheetRef = useRef<BottomSheet>(null);
   const {markVisited, deleteStash} = useStashes();
@@ -101,7 +104,7 @@ export function StashBottomSheet({
     }
     Alert.alert(
       'Delete this place?',
-      `"${stash.place_name}" will be removed from your Cache. This can't be undone.`,
+      `"${stash.place_name}" will be removed from your Cache and any trips it's part of. This can't be undone.`,
       [
         {text: 'Cancel', style: 'cancel'},
         {
@@ -239,6 +242,17 @@ export function StashBottomSheet({
             <AppText variant="caption" style={styles.savedDate}>
               Saved {formatDate(stash.created_at)}
             </AppText>
+
+            {addedBy && (
+              <View style={styles.alsoSaved}>
+                <View style={styles.avatarStack}>
+                  <FriendAvatar profile={addedBy} overlap={false} />
+                </View>
+                <AppText variant="medium" style={styles.alsoSavedText}>
+                  Added by @{addedBy.username}
+                </AppText>
+              </View>
+            )}
 
             {alsoSaved.length > 0 && (
               <View style={styles.alsoSaved}>

@@ -16,6 +16,7 @@ export type IconName =
   | 'bookmark'
   | 'user'
   | 'users'
+  | 'suitcase'
   // Categories
   | 'utensils'
   | 'coffee'
@@ -31,7 +32,9 @@ export type IconName =
   | 'directions'
   | 'camera'
   | 'close'
-  | 'plus';
+  | 'plus'
+  | 'calendar'
+  | 'clock';
 
 /** One source of truth mapping each place category to its glyph. */
 export const CATEGORY_ICON: Record<Category, IconName> = {
@@ -69,6 +72,14 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <Circle cx={9} cy={7} r={4} />
       <Path d="M23 21v-2a4 4 0 0 0-3-3.87" />
       <Path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </>
+  ),
+  suitcase: (
+    <>
+      <Path d="M4 7h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" />
+      <Path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+      <Line x1={8} y1={7} x2={8} y2={21} />
+      <Line x1={16} y1={7} x2={16} y2={21} />
     </>
   ),
   utensils: (
@@ -146,6 +157,20 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <Line x1={12} y1={5} x2={12} y2={19} />
       <Line x1={5} y1={12} x2={19} y2={12} />
+    </>
+  ),
+  calendar: (
+    <>
+      <Path d="M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+      <Line x1={16} y1={2} x2={16} y2={6} />
+      <Line x1={8} y1={2} x2={8} y2={6} />
+      <Line x1={3} y1={10} x2={21} y2={10} />
+    </>
+  ),
+  clock: (
+    <>
+      <Circle cx={12} cy={12} r={10} />
+      <Polyline points="12 6 12 12 16 14" />
     </>
   ),
 };

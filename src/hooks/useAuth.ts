@@ -101,7 +101,12 @@ export async function signIn(email: string, password: string): Promise<void> {
   }
 }
 
-export async function signUp(email: string, password: string): Promise<void> {
+export type SignUpResult = 'signedIn' | 'confirmEmail';
+
+export async function signUp(
+  email: string,
+  password: string,
+): Promise<SignUpResult> {
   const {data, error} = await supabase.auth.signUp({
     email: email.trim(),
     password,
@@ -109,15 +114,12 @@ export async function signUp(email: string, password: string): Promise<void> {
   if (error) {
     throw new Error(error.message);
   }
-  // With email confirmations disabled (recommended for this MVP — see README),
-  // signUp returns a live session and onAuthStateChange takes over. If
-  // confirmations are on, there is no session yet; surface a clear message.
+  // If confirmations are on, there is no session yet; the user needs to
+  // confirm their email before logging in.
   if (!data.session) {
-    throw new Error(
-      'Check your email to confirm your account, then log in. ' +
-        '(Disable "Confirm email" in Supabase Auth settings to skip this.)',
-    );
+    return 'confirmEmail';
   }
+  return 'signedIn';
 }
 
 export async function signOut(): Promise<void> {

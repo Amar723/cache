@@ -1,12 +1,13 @@
-import {handleRecoveryLink} from '../useAuth';
+import {handleRecoveryLink, signUp} from '../useAuth';
 import {supabase} from '../../lib/supabase';
 
 jest.mock('../../lib/supabase', () => ({
-  supabase: {auth: {setSession: jest.fn()}},
+  supabase: {auth: {setSession: jest.fn(), signUp: jest.fn()}},
 }));
 jest.mock('../../lib/storage', () => ({uploadAvatar: jest.fn()}));
 
 const mockSetSession = supabase.auth.setSession as jest.Mock;
+const mockSignUp = supabase.auth.signUp as jest.Mock;
 
 describe('handleRecoveryLink', () => {
   beforeEach(() => {
@@ -41,5 +42,34 @@ describe('handleRecoveryLink', () => {
       'cache://auth/recovery#access_token=AAA&refresh_token=BBB&type=recovery';
 
     expect(await handleRecoveryLink(url)).toBe(false);
+  });
+});
+
+describe('signUp', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns confirmEmail when email confirmation is required', async () => {
+    mockSignUp.mockResolvedValue({data: {session: null}, error: null});
+
+    await expect(signUp(' user@example.com ', 'password')).resolves.toBe(
+      'confirmEmail',
+    );
+    expect(mockSignUp).toHaveBeenCalledWith({
+      email: 'user@example.com',
+      password: 'password',
+    });
+  });
+
+  it('returns signedIn when Supabase creates a session immediately', async () => {
+    mockSignUp.mockResolvedValue({
+      data: {session: {user: {id: 'user-1'}}},
+      error: null,
+    });
+
+    await expect(signUp('user@example.com', 'password')).resolves.toBe(
+      'signedIn',
+    );
   });
 });

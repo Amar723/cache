@@ -42,7 +42,12 @@ export function AuthScreen(): React.JSX.Element {
       if (mode === 'login') {
         await signIn(email, password);
       } else {
-        await signUp(email, password);
+        const result = await signUp(email, password);
+        if (result === 'confirmEmail') {
+          setPassword('');
+          setMode('login');
+          setInfo('Check your email to confirm your account, then log in.');
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');

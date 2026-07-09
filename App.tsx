@@ -14,6 +14,7 @@ import {clearOverlaps, reconcileFriendOverlaps} from './src/hooks/useOverlaps';
 import {useGeofenceSync} from './src/hooks/useGeofenceSync';
 import {primeLocation} from './src/hooks/useLocation';
 import {RootNavigator} from './src/navigation/RootNavigator';
+import {OverlapAlertDialog} from './src/components/OverlapAlertDialog';
 
 /**
  * Configure react-native-background-fetch.
@@ -94,6 +95,7 @@ function App(): React.JSX.Element {
           backgroundColor={colors.background}
         />
         <RootNavigator />
+        <OverlapAlertDialog />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

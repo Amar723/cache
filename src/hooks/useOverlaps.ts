@@ -1,4 +1,3 @@
-import {Alert} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {supabase} from '../lib/supabase';
@@ -18,19 +17,35 @@ import type {Profile, Stash} from '../types';
  * Only places a friend has shared at `friends` visibility participate — RLS
  * already restricts what we can read, so a private pin never leaks into an
  * overlap. The result powers a badge on the map pin and an "Also saved by …"
- * row in the detail sheet, plus a celebratory in-app alert the first time each
+ * row in the detail sheet, plus a celebratory in-app dialog the first time each
  * overlap is seen — which is how *both* people find out: the saver the moment
  * they save, their friend the next time they open the app.
+ *
+ * The dialog is store state rendered by `<OverlapAlertDialog>` at the app
+ * root rather than an imperative `Alert.alert` call: `reconcileFriendOverlaps`
+ * runs on the sign-in effect, which can fire before the native root view has
+ * finished presenting, and `Alert.alert` called that early is silently
+ * dropped on iOS. That path — cold launch, no other trigger — is exactly the
+ * friend's "next time they open the app" case, so it needs a dialog that just
+ * paints whenever this state says so, no matter how early it's set.
  */
 const SEEN_KEY = 'overlaps:notified';
 const EMPTY: Profile[] = [];
 
+/** A pending "you and a friend both saved this" notification. */
+export interface OverlapAlert {
+  title: string;
+  message: string;
+}
+
 interface OverlapState {
   /** Keyed by *your* stash id → the friends who also saved that place. */
   byStashId: Record<string, Profile[]>;
+  /** The notification queued for display, if any. */
+  pendingAlert: OverlapAlert | null;
 }
 
-const store = createStore<OverlapState>({byStashId: {}});
+const store = createStore<OverlapState>({byStashId: {}, pendingAlert: null});
 
 let inFlight = false;
 
@@ -73,14 +88,14 @@ export async function reconcileFriendOverlaps(): Promise<void> {
       profileById,
     );
     store.setState({byStashId});
-    await alertNewOverlaps(byStashId, mine);
+    await queueNewOverlapAlert(byStashId, mine);
   } finally {
     inFlight = false;
   }
 }
 
-/** First-time alerts for overlaps we haven't surfaced before. */
-async function alertNewOverlaps(
+/** Queues a first-time notification for overlaps we haven't surfaced before. */
+async function queueNewOverlapAlert(
   byStashId: Record<string, Profile[]>,
   mine: Stash[],
 ): Promise<void> {
@@ -120,7 +135,12 @@ async function alertNewOverlaps(
   if (firstRun || fresh.length === 0) {
     return;
   }
-  Alert.alert('You crossed paths! 📍', overlapMessage(fresh));
+  store.setState({
+    pendingAlert: {
+      title: 'You crossed paths! 📍',
+      message: overlapMessage(fresh),
+    },
+  });
 }
 
 /** Human-readable summary of one or more fresh overlaps. */
@@ -137,7 +157,7 @@ function overlapMessage(fresh: {place: string; profiles: Profile[]}[]): string {
 
 /** Reset on sign-out. */
 export function clearOverlaps(): void {
-  store.setState({byStashId: {}});
+  store.setState({byStashId: {}, pendingAlert: null});
 }
 
 /** React hook: the friends who also saved a given stash (stable empty array). */
@@ -150,4 +170,14 @@ export function useStashOverlap(stashId: string | null): Profile[] {
 /** React hook: the whole overlap map, for the pins on the map screen. */
 export function useOverlapMap(): Record<string, Profile[]> {
   return store.useSelector(s => s.byStashId);
+}
+
+/** React hook: the currently queued overlap notification, if any. */
+export function useOverlapAlert(): OverlapAlert | null {
+  return store.useSelector(s => s.pendingAlert);
+}
+
+/** Dismiss the currently displayed overlap notification. */
+export function dismissOverlapAlert(): void {
+  store.setState({pendingAlert: null});
 }

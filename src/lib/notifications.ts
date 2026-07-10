@@ -19,6 +19,7 @@ import {requestOpenStash} from '../navigation/navigationRef';
  */
 
 export const CHANNEL_ID = 'cache-proximity';
+export const SOCIAL_CHANNEL_ID = 'cache-social';
 
 type AnyNotification = Omit<ReceivedNotification, 'userInfo'> & {
   userInfo?: Record<string, unknown>;
@@ -66,6 +67,17 @@ export function configureNotifications(): void {
       channelId: CHANNEL_ID,
       channelName: 'Nearby places',
       channelDescription: 'Reminders when you are near a cached place',
+      importance: Importance.HIGH,
+      vibrate: true,
+    },
+    () => undefined,
+  );
+
+  PushNotification.createChannel(
+    {
+      channelId: SOCIAL_CHANNEL_ID,
+      channelName: 'Friend activity',
+      channelDescription: 'When you and a friend save the same place',
       importance: Importance.HIGH,
       vibrate: true,
     },

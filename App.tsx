@@ -11,6 +11,7 @@ import {initAuth, useAuth} from './src/hooks/useAuth';
 import {clearStashes, refreshStashes} from './src/hooks/useStashes';
 import {clearFriends, refreshFriends} from './src/hooks/useFriends';
 import {clearOverlaps, reconcileFriendOverlaps} from './src/hooks/useOverlaps';
+import {clearPushToken, registerPushToken} from './src/hooks/usePushToken';
 import {useGeofenceSync} from './src/hooks/useGeofenceSync';
 import {primeLocation} from './src/hooks/useLocation';
 import {RootNavigator} from './src/navigation/RootNavigator';
@@ -69,10 +70,12 @@ function App(): React.JSX.Element {
       Promise.all([refreshStashes(), refreshFriends()]).then(() =>
         reconcileFriendOverlaps(),
       );
+      registerPushToken();
     } else if (status === 'signedOut') {
       clearStashes();
       clearFriends();
       clearOverlaps();
+      clearPushToken();
     }
   }, [status]);
 

@@ -95,6 +95,26 @@ export type ProfileInsert = Omit<ProfileRow, 'created_at'> & {
   created_at?: string;
 };
 
+export type PushPlatform = 'ios' | 'android';
+
+export interface PushTokenRow {
+  id: string;
+  user_id: string;
+  token: string;
+  platform: PushPlatform;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PushTokenInsert = Omit<
+  PushTokenRow,
+  'id' | 'created_at' | 'updated_at'
+> & {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export interface Database {
   public: {
     Tables: {
@@ -114,6 +134,12 @@ export interface Database {
         Row: FriendshipRow;
         Insert: FriendshipInsert;
         Update: Partial<FriendshipInsert>;
+        Relationships: [];
+      };
+      push_tokens: {
+        Row: PushTokenRow;
+        Insert: PushTokenInsert;
+        Update: Partial<PushTokenInsert>;
         Relationships: [];
       };
     };

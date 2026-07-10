@@ -96,6 +96,7 @@ export async function createStash(draft: StashDraft): Promise<Stash> {
 
   const created = data as Stash;
   store.setState(prev => ({stashes: [created, ...prev.stashes]}));
+  notifyOverlap(created.id);
   return created;
 }
 
@@ -136,7 +137,21 @@ export async function updateStash(
   store.setState(prev => ({
     stashes: prev.stashes.map(s => (s.id === stashId ? updated : s)),
   }));
+  notifyOverlap(updated.id);
   return updated;
+}
+
+/**
+ * Fire-and-forget: ask the notify-overlap edge function to push any friend
+ * who already saved this same place, in case they don't have the app open
+ * to catch the in-app "You crossed paths!" dialog (see useOverlaps.ts).
+ * Never blocks or throws into the caller — a failed push is not worth
+ * surfacing as a save error.
+ */
+function notifyOverlap(stashId: string): void {
+  supabase.functions
+    .invoke('notify-overlap', {body: {stashId}})
+    .catch(() => undefined);
 }
 
 /** Permanently delete a stash and drop it from local state. */

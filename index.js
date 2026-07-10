@@ -16,6 +16,7 @@ import BackgroundFetch from 'react-native-background-fetch';
 import App from './App';
 import {name as appName} from './app.json';
 import {configureNotifications} from './src/lib/notifications';
+import {configureRemoteNotifications} from './src/lib/remoteNotifications';
 import {runProximityCheck} from './src/lib/proximity';
 import {initMonitoring, wrapApp} from './src/lib/monitoring';
 
@@ -26,6 +27,7 @@ initMonitoring();
 // Configure the local-notification channel as early as possible so taps that
 // cold-start the app still resolve their deep link.
 configureNotifications();
+configureRemoteNotifications();
 
 /**
  * Android headless task. Fires when the OS wakes the app for a background

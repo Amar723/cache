@@ -52,6 +52,24 @@ create table if not exists friendships (
   check (requester_id <> addressee_id)
 );
 
+create table if not exists push_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  token text not null,
+  platform text not null, -- 'ios' | 'android'
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (user_id, token)
+);
+
+create table if not exists overlap_notifications (
+  id uuid primary key default gen_random_uuid(),
+  stash_id_a uuid not null references stashes(id) on delete cascade,
+  stash_id_b uuid not null references stashes(id) on delete cascade,
+  notified_at timestamptz default now(),
+  check (stash_id_a <> stash_id_b)
+);
+
 -- ── Indexes ─────────────────────────────────────────────────────────────────
 create index if not exists stashes_user_created_idx
   on stashes (user_id, created_at desc);
@@ -66,10 +84,18 @@ create unique index if not exists friendships_pair_idx
 create index if not exists friendships_addressee_idx on friendships (addressee_id, status);
 create index if not exists friendships_requester_idx on friendships (requester_id, status);
 
+create index if not exists push_tokens_user_idx on push_tokens (user_id);
+
+-- One notification per unordered pair of stashes.
+create unique index if not exists overlap_notifications_pair_idx
+  on overlap_notifications (least(stash_id_a, stash_id_b), greatest(stash_id_a, stash_id_b));
+
 -- ── Row Level Security: enable ──────────────────────────────────────────────
 alter table profiles enable row level security;
 alter table stashes enable row level security;
 alter table friendships enable row level security;
+alter table push_tokens enable row level security;
+alter table overlap_notifications enable row level security;
 
 -- ── Policies: profiles ──────────────────────────────────────────────────────
 drop policy if exists "Users can manage their own profile" on profiles;
@@ -123,7 +149,21 @@ create policy "Delete own friendships"
   on friendships for delete
   using (auth.uid() = requester_id or auth.uid() = addressee_id);
 
--- ── updated_at trigger for friendships ──────────────────────────────────────
+-- ── Policies: push_tokens ───────────────────────────────────────────────────
+-- A user manages only their own device tokens. Deliberately no policy lets
+-- one user read another's token — the notify-overlap edge function reads
+-- across users with the service-role key, which bypasses RLS entirely.
+drop policy if exists "Manage own push tokens" on push_tokens;
+create policy "Manage own push tokens"
+  on push_tokens for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- overlap_notifications has RLS enabled but intentionally zero policies: only
+-- the notify-overlap edge function (service-role key, bypasses RLS) ever
+-- touches it. It's server bookkeeping, not user-facing data.
+
+-- ── updated_at trigger for friendships / push_tokens ────────────────────────
 create or replace function set_updated_at()
 returns trigger as $$
 begin
@@ -135,6 +175,11 @@ $$ language plpgsql;
 drop trigger if exists friendships_updated_at on friendships;
 create trigger friendships_updated_at
   before update on friendships
+  for each row execute function set_updated_at();
+
+drop trigger if exists push_tokens_updated_at on push_tokens;
+create trigger push_tokens_updated_at
+  before update on push_tokens
   for each row execute function set_updated_at();
 
 -- ── Storage: public-read avatars bucket, owner-only writes ──────────────────
@@ -187,6 +232,7 @@ begin
 
   delete from stashes where user_id = uid;
   delete from friendships where requester_id = uid or addressee_id = uid;
+  delete from push_tokens where user_id = uid;
   delete from profiles where id = uid;
   delete from auth.users where id = uid;
 end;

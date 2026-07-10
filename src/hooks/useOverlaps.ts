@@ -4,10 +4,15 @@ import {supabase} from '../lib/supabase';
 import {createStore} from '../lib/store';
 import {computeOverlaps, friendLabel} from '../lib/overlap';
 import type {FriendStashRow} from '../lib/overlap';
+import {
+  overlapMessageMultiple,
+  overlapMessageSingle,
+  overlapTitle,
+} from '../lib/overlapMessages';
 import {currentUserId} from './useAuth';
 import {getStashesSnapshot} from './useStashes';
 import {getAcceptedFriends} from './useFriends';
-import type {Profile, Stash} from '../types';
+import type {Category, Profile, Stash} from '../types';
 
 /**
  * Friend place-overlap engine: which of *your* saved places a friend has also
@@ -111,7 +116,11 @@ async function queueNewOverlapAlert(
   const seen = new Set<string>(raw ? (JSON.parse(raw) as string[]) : []);
   const stashById = new Map(mine.map(s => [s.id, s]));
 
-  const fresh: {place: string; profiles: Profile[]}[] = [];
+  const fresh: {
+    place: string;
+    category: Category | null;
+    profiles: Profile[];
+  }[] = [];
   for (const [stashId, profiles] of Object.entries(byStashId)) {
     const stash = stashById.get(stashId);
     if (!stash) {
@@ -119,7 +128,11 @@ async function queueNewOverlapAlert(
     }
     const unseen = profiles.filter(p => !seen.has(`${stashId}:${p.id}`));
     if (unseen.length > 0) {
-      fresh.push({place: stash.place_name, profiles: unseen});
+      fresh.push({
+        place: stash.place_name,
+        category: stash.category,
+        profiles: unseen,
+      });
     }
     for (const p of profiles) {
       seen.add(`${stashId}:${p.id}`);
@@ -137,22 +150,21 @@ async function queueNewOverlapAlert(
   }
   store.setState({
     pendingAlert: {
-      title: 'You crossed paths! 📍',
+      title: overlapTitle(),
       message: overlapMessage(fresh),
     },
   });
 }
 
-/** Human-readable summary of one or more fresh overlaps. */
-function overlapMessage(fresh: {place: string; profiles: Profile[]}[]): string {
+/** A fun, randomized summary of one or more fresh overlaps. */
+function overlapMessage(
+  fresh: {place: string; category: Category | null; profiles: Profile[]}[],
+): string {
   if (fresh.length === 1) {
-    const {place, profiles} = fresh[0];
-    return `You and ${friendLabel(profiles)} both saved ${place}.`;
+    const {place, category, profiles} = fresh[0];
+    return overlapMessageSingle(category, friendLabel(profiles), place);
   }
-  const places = fresh.map(f => f.place);
-  const head = places.slice(0, 3).join(', ');
-  const more = places.length > 3 ? `, and ${places.length - 3} more` : '';
-  return `You and your friends have both saved ${head}${more}.`;
+  return overlapMessageMultiple(fresh.map(f => f.place));
 }
 
 /** Reset on sign-out. */

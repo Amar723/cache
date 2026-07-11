@@ -1,5 +1,6 @@
 #import "AppDelegate.h"
 
+#import <FirebaseCore/FirebaseCore.h>
 #import <React/RCTBundleURLProvider.h>
 #import <React/RCTLinkingManager.h>
 #import <UserNotifications/UserNotifications.h>
@@ -12,6 +13,12 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
+  // Initialize the default Firebase app from GoogleService-Info.plist. Required
+  // by @react-native-firebase on iOS — without it, any messaging() call in JS
+  // throws "No Firebase App '[DEFAULT]' has been created". Must run before RN
+  // starts so it's ready before index.js's configureRemoteNotifications() runs.
+  [FIRApp configure];
+
   [GMSServices provideAPIKey:[RNCConfig envFor:@"GOOGLE_MAPS_API_KEY_IOS"]];
 
   self.moduleName = @"Cache";

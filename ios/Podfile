@@ -27,6 +27,13 @@ target 'Cache' do
   # PROVIDER_GOOGLE raises "AirGoogleMaps dir must be added to your xCode
   # project". The API key is provided natively in AppDelegate via GMSServices.
   pod 'react-native-google-maps', :path => '../node_modules/react-native-maps'
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseInstallations', :modular_headers => true
+  pod 'FirebaseMessaging', :modular_headers => true
+  pod 'GoogleDataTransport', :modular_headers => true
+  pod 'GoogleUtilities', :modular_headers => true
 
   target 'CacheTests' do
     inherit! :complete

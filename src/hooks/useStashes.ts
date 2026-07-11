@@ -150,7 +150,7 @@ export async function updateStash(
  */
 function notifyOverlap(stashId: string): void {
   supabase.functions
-    .invoke('notify-overlap', {body: {stashId}})
+    ?.invoke('notify-overlap', {body: {stashId}})
     .catch(() => undefined);
 }
 

@@ -1,5 +1,5 @@
-import React, {useMemo, useState} from 'react';
-import {Pressable, StyleSheet, View} from 'react-native';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {ActivityIndicator, Pressable, StyleSheet, View} from 'react-native';
 import MapView, {
   type MapStyleElement,
   PROVIDER_GOOGLE,
@@ -16,6 +16,7 @@ import {
   type AppTheme,
 } from '../lib/theme';
 import {useFriendStashes} from '../hooks/useFriendStashes';
+import {useLocation} from '../hooks/useLocation';
 import {StashPin} from '../components/StashPin';
 import {StashBottomSheet} from '../components/StashBottomSheet';
 import {AppText} from '../components/Themed';
@@ -30,6 +31,15 @@ const DEFAULT_REGION: Region = {
   latitudeDelta: 0.08,
   longitudeDelta: 0.08,
 };
+
+function regionFor(point: {lat: number; lng: number}, delta = 0.05): Region {
+  return {
+    latitude: point.lat,
+    longitude: point.lng,
+    latitudeDelta: delta,
+    longitudeDelta: delta,
+  };
+}
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FriendMap'>;
 
@@ -46,50 +56,74 @@ export function FriendMapScreen({route, navigation}: Props): React.JSX.Element {
   );
   const {friendId, username, defaultCityLat, defaultCityLng} = route.params;
   const {stashes, loading} = useFriendStashes(friendId);
+  const {location, permission} = useLocation();
   const [selected, setSelected] = useState<Stash | null>(null);
 
-  // Prefer the friend's home city (known synchronously from nav params) so the
-  // map opens on their city even before pins load or when they've shared none.
-  // Fall back to their first pin, then a neutral region.
-  const initialRegion: Region =
-    defaultCityLat != null && defaultCityLng != null
-      ? {
-          latitude: defaultCityLat,
-          longitude: defaultCityLng,
-          latitudeDelta: 0.12,
-          longitudeDelta: 0.12,
-        }
-      : stashes.length > 0
-      ? {
-          latitude: stashes[0].lat,
-          longitude: stashes[0].lng,
-          latitudeDelta: 0.08,
-          longitudeDelta: 0.08,
-        }
-      : DEFAULT_REGION;
+  // Where to open if we can't get the user's own location: the friend's home
+  // city (known synchronously from nav params), then their first shared pin,
+  // then a neutral region.
+  const fallbackRegion = useCallback(
+    (): Region =>
+      defaultCityLat != null && defaultCityLng != null
+        ? regionFor({lat: defaultCityLat, lng: defaultCityLng}, 0.12)
+        : stashes.length > 0
+        ? regionFor(stashes[0], 0.08)
+        : DEFAULT_REGION,
+    [defaultCityLat, defaultCityLng, stashes],
+  );
+
+  // Open at the user's *own* current location so they can look around from where
+  // they are (the friend's pins may be anywhere). `initialRegion` is uncontrolled,
+  // so after this one-time center the user pans and zooms freely.
+  const [initialRegion, setInitialRegion] = useState<Region | null>(null);
+  const regionDecided = useRef(false);
+  const decideRegion = useCallback((region: Region) => {
+    if (regionDecided.current) {
+      return;
+    }
+    regionDecided.current = true;
+    setInitialRegion(region);
+  }, []);
+
+  // `location` is seeded from the cached last-known fix, so this usually resolves
+  // within a frame; only give up on it once permission is actually denied.
+  useEffect(() => {
+    if (location) {
+      decideRegion(regionFor(location));
+    } else if (permission === 'denied') {
+      decideRegion(fallbackRegion());
+    }
+  }, [location, permission, decideRegion, fallbackRegion]);
+
+  // Backstop: never sit on the spinner forever (e.g. permission stuck 'unknown').
+  useEffect(() => {
+    const timer = setTimeout(() => decideRegion(fallbackRegion()), 5000);
+    return () => clearTimeout(timer);
+  }, [decideRegion, fallbackRegion]);
 
   return (
     <View style={styles.container}>
-      <MapView
-        // With a known city the region is set on first mount; otherwise remount
-        // once the first pin loads so the map lands on it.
-        key={
-          defaultCityLat != null && defaultCityLng != null
-            ? 'city'
-            : stashes.length > 0
-            ? stashes[0].id
-            : 'empty'
-        }
-        provider={PROVIDER_GOOGLE}
-        style={StyleSheet.absoluteFill}
-        customMapStyle={mapStyle as unknown as MapStyleElement[]}
-        initialRegion={initialRegion}
-        showsMyLocationButton={false}
-        toolbarEnabled={false}>
-        {stashes.map(stash => (
-          <StashPin key={stash.id} stash={stash} onPress={setSelected} />
-        ))}
-      </MapView>
+      {initialRegion ? (
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          style={StyleSheet.absoluteFill}
+          customMapStyle={mapStyle as unknown as MapStyleElement[]}
+          initialRegion={initialRegion}
+          showsUserLocation
+          showsMyLocationButton={false}
+          toolbarEnabled={false}>
+          {stashes.map(stash => (
+            <StashPin key={stash.id} stash={stash} onPress={setSelected} />
+          ))}
+        </MapView>
+      ) : (
+        <View style={styles.locating}>
+          <ActivityIndicator color={colors.primary} />
+          <AppText variant="caption" style={styles.locatingText}>
+            Finding your location…
+          </AppText>
+        </View>
+      )}
 
       <SafeAreaView
         style={styles.overlay}
@@ -137,6 +171,16 @@ export function FriendMapScreen({route, navigation}: Props): React.JSX.Element {
 function createStyles(c: AppColors, appElevation: AppTheme['elevation']) {
   return StyleSheet.create({
     container: {flex: 1, backgroundColor: c.background},
+    locating: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.md,
+      backgroundColor: c.background,
+    },
+    locatingText: {
+      color: c.textMuted,
+    },
     overlay: {
       ...StyleSheet.absoluteFillObject,
     },

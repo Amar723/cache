@@ -262,6 +262,25 @@ export async function markVisited(stashId: string): Promise<void> {
   }));
 }
 
+/** Clear a stash's visited status (idempotent). Updates local state in place. */
+export async function unmarkVisited(stashId: string): Promise<void> {
+  const {data, error} = await supabase
+    .from('stashes')
+    .update({visited_at: null})
+    .eq('id', stashId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const updated = data as Stash;
+  store.setState(prev => ({
+    stashes: prev.stashes.map(s => (s.id === stashId ? updated : s)),
+  }));
+}
+
 /** React hook: the full list + status + actions. */
 export function useStashes() {
   const stashes = store.useSelector(s => s.stashes);
@@ -277,6 +296,7 @@ export function useStashes() {
     updateStash,
     deleteStash,
     markVisited,
+    unmarkVisited,
   };
 }
 

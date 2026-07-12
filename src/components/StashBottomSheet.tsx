@@ -55,7 +55,7 @@ export function StashBottomSheet({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const sheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
-  const {markVisited, deleteStash} = useStashes();
+  const {markVisited, unmarkVisited, deleteStash} = useStashes();
   const liveStash = useStash(!readOnly ? stash?.id ?? null : null);
   const activeStash = liveStash ?? stash;
   const alsoSaved = useStashOverlap(activeStash?.id ?? null);
@@ -66,6 +66,8 @@ export function StashBottomSheet({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingUnmark, setConfirmingUnmark] = useState(false);
+  const [unmarking, setUnmarking] = useState(false);
   const [freshVisitedId, setFreshVisitedId] = useState<string | null>(null);
   const openRef = useRef(false);
   const onOpenChangeRef = useRef(onOpenChange);
@@ -201,6 +203,35 @@ export function StashBottomSheet({
     }
   }, [deleteStash, onClose, stash]);
 
+  const handleUnmarkPress = useCallback(() => {
+    if (!activeStash) {
+      return;
+    }
+    setConfirmingUnmark(true);
+  }, [activeStash]);
+
+  const cancelUnmark = useCallback(() => setConfirmingUnmark(false), []);
+
+  const confirmUnmark = useCallback(async () => {
+    if (!activeStash) {
+      return;
+    }
+    setUnmarking(true);
+    try {
+      await unmarkVisited(activeStash.id);
+      lightImpact();
+      setConfirmingUnmark(false);
+    } catch (e) {
+      setConfirmingUnmark(false);
+      Alert.alert(
+        'Could not unmark',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    } finally {
+      setUnmarking(false);
+    }
+  }, [activeStash, unmarkVisited]);
+
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
@@ -318,28 +349,41 @@ export function StashBottomSheet({
             {!readOnly && (
               <View style={styles.actions}>
                 {visited ? (
-                  <Animated.View
-                    style={[
-                      styles.visitedPill,
-                      freshVisited && styles.visitedPillFresh,
-                      {transform: [{scale: visitScale}]},
-                    ]}>
-                    <Icon
-                      name="check"
-                      size={18}
-                      color={freshVisited ? colors.onSuccess : colors.success}
-                    />
-                    <AppText
-                      variant="bold"
+                  <Pressable
+                    onPress={handleUnmarkPress}
+                    disabled={freshVisited || unmarking}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Visited ${formatDate(
+                      activeStash.visited_at,
+                    )}. Tap to unmark.`}>
+                    <Animated.View
                       style={[
-                        styles.visitedText,
-                        freshVisited && styles.visitedTextFresh,
+                        styles.visitedPill,
+                        freshVisited && styles.visitedPillFresh,
+                        {transform: [{scale: visitScale}]},
                       ]}>
-                      {freshVisited
-                        ? 'Visited'
-                        : `Visited ${formatDate(activeStash.visited_at)}`}
-                    </AppText>
-                  </Animated.View>
+                      <Icon
+                        name="check"
+                        size={18}
+                        color={freshVisited ? colors.onSuccess : colors.success}
+                      />
+                      <AppText
+                        variant="bold"
+                        style={[
+                          styles.visitedText,
+                          freshVisited && styles.visitedTextFresh,
+                        ]}>
+                        {freshVisited
+                          ? 'Visited'
+                          : `Visited ${formatDate(activeStash.visited_at)}`}
+                      </AppText>
+                      {!freshVisited && (
+                        <View style={styles.unmarkHint}>
+                          <Icon name="close" size={16} color={colors.success} />
+                        </View>
+                      )}
+                    </Animated.View>
+                  </Pressable>
                 ) : (
                   <PrimaryButton
                     title="Mark as Visited"
@@ -379,6 +423,19 @@ export function StashBottomSheet({
           loading={deleting}
           onConfirm={confirmDelete}
           onCancel={cancelDelete}
+        />
+      )}
+
+      {activeStash && (
+        <ConfirmDialog
+          visible={confirmingUnmark}
+          title="Unmark as visited?"
+          message={`"${activeStash.place_name}" will move back to your saved places and can notify you when you're nearby again.`}
+          confirmLabel="Unmark"
+          destructive={false}
+          loading={unmarking}
+          onConfirm={confirmUnmark}
+          onCancel={cancelUnmark}
         />
       )}
     </BottomSheet>
@@ -546,6 +603,13 @@ function createStyles(c: AppColors) {
     },
     secondaryButton: {
       flex: 1,
+    },
+    unmarkHint: {
+      position: 'absolute',
+      right: spacing.md,
+      top: 0,
+      bottom: 0,
+      justifyContent: 'center',
     },
     visitedPill: {
       minHeight: 50,

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -12,7 +12,13 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {launchImageLibrary} from 'react-native-image-picker';
 
-import {colors, fonts, radius, spacing} from '../lib/theme';
+import {
+  fonts,
+  radius,
+  spacing,
+  useAppTheme,
+  type AppColors,
+} from '../lib/theme';
 import {useAuth} from '../hooks/useAuth';
 import type {AvatarUpload} from '../lib/storage';
 import {AppText, PrimaryButton} from '../components/Themed';
@@ -23,6 +29,8 @@ import {Icon} from '../components/Icon';
  * creates the profile row and flips auth status to "ready".
  */
 export function OnboardingScreen(): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const {completeOnboarding, signOut} = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
@@ -107,7 +115,7 @@ export function OnboardingScreen(): React.JSX.Element {
               <Image source={{uri: avatarPreview}} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Icon name="camera" size={26} color={colors.inkMuted} />
+                <Icon name="camera" size={26} color={colors.textMuted} />
                 <AppText variant="caption" style={styles.avatarHint}>
                   Add photo
                 </AppText>
@@ -122,7 +130,7 @@ export function OnboardingScreen(): React.JSX.Element {
             value={displayName}
             onChangeText={setDisplayName}
             placeholder="Amar Singh"
-            placeholderTextColor={colors.inkMuted}
+            placeholderTextColor={colors.textMuted}
             style={styles.input}
           />
 
@@ -137,7 +145,7 @@ export function OnboardingScreen(): React.JSX.Element {
               value={username}
               onChangeText={setUsername}
               placeholder="amar"
-              placeholderTextColor={colors.inkMuted}
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
               style={[styles.input, styles.usernameInput]}
@@ -168,82 +176,84 @@ export function OnboardingScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.background},
-  flex: {flex: 1},
-  content: {
-    flexGrow: 1,
-    padding: spacing.xl,
-  },
-  title: {
-    marginTop: spacing.lg,
-  },
-  subtitle: {
-    color: colors.inkMuted,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
-  },
-  avatarWrap: {
-    alignSelf: 'center',
-    marginBottom: spacing.xl,
-  },
-  avatar: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  avatarPlaceholder: {
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  avatarHint: {
-    color: colors.inkMuted,
-  },
-  label: {
-    marginBottom: spacing.sm,
-  },
-  spaced: {
-    marginTop: spacing.lg,
-  },
-  input: {
-    minHeight: 50,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    color: colors.ink,
-  },
-  usernameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  at: {
-    fontSize: 18,
-    marginRight: spacing.sm,
-    color: colors.inkMuted,
-  },
-  usernameInput: {
-    flex: 1,
-  },
-  error: {
-    color: colors.danger,
-    marginTop: spacing.lg,
-  },
-  submit: {
-    marginTop: spacing.xl,
-  },
-  signOut: {
-    marginTop: spacing.lg,
-    alignItems: 'center',
-  },
-  signOutText: {
-    color: colors.inkMuted,
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: {flex: 1, backgroundColor: c.background},
+    flex: {flex: 1},
+    content: {
+      flexGrow: 1,
+      padding: spacing.xl,
+    },
+    title: {
+      marginTop: spacing.lg,
+    },
+    subtitle: {
+      color: c.textMuted,
+      marginTop: spacing.sm,
+      marginBottom: spacing.xl,
+    },
+    avatarWrap: {
+      alignSelf: 'center',
+      marginBottom: spacing.xl,
+    },
+    avatar: {
+      width: 112,
+      height: 112,
+      borderRadius: 56,
+      borderWidth: 2,
+      borderColor: c.border,
+    },
+    avatarPlaceholder: {
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+    },
+    avatarHint: {
+      color: c.textMuted,
+    },
+    label: {
+      marginBottom: spacing.sm,
+    },
+    spaced: {
+      marginTop: spacing.lg,
+    },
+    input: {
+      minHeight: 50,
+      borderRadius: radius.md,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      paddingHorizontal: spacing.md,
+      fontFamily: fonts.regular,
+      fontSize: 15,
+      color: c.text,
+    },
+    usernameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    at: {
+      fontSize: 18,
+      marginRight: spacing.sm,
+      color: c.textMuted,
+    },
+    usernameInput: {
+      flex: 1,
+    },
+    error: {
+      color: c.danger,
+      marginTop: spacing.lg,
+    },
+    submit: {
+      marginTop: spacing.xl,
+    },
+    signOut: {
+      marginTop: spacing.lg,
+      alignItems: 'center',
+    },
+    signOutText: {
+      color: c.textMuted,
+    },
+  });
+}

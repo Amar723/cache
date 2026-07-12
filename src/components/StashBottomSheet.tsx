@@ -14,7 +14,7 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import {colors, radius, spacing} from '../lib/theme';
+import {radius, spacing, useAppTheme, type AppColors} from '../lib/theme';
 import {formatDate} from '../lib/format';
 import {lightImpact} from '../lib/haptics';
 import {openVideo} from '../lib/tiktok';
@@ -51,6 +51,8 @@ export function StashBottomSheet({
   onVisited,
   onOpenChange,
 }: StashBottomSheetProps): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const sheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
   const {markVisited, deleteStash} = useStashes();
@@ -76,7 +78,7 @@ export function StashBottomSheet({
         paddingBottom: spacing.xxl + insets.bottom,
       },
     ],
-    [insets.bottom],
+    [insets.bottom, styles],
   );
 
   useEffect(() => {
@@ -244,7 +246,7 @@ export function StashBottomSheet({
                 />
               ) : (
                 <View style={[styles.thumb, styles.thumbFallback]}>
-                  <Icon name="play" size={28} color={colors.inkMuted} />
+                  <Icon name="play" size={28} color={colors.textMuted} />
                   <AppText
                     variant="caption"
                     numberOfLines={2}
@@ -254,7 +256,7 @@ export function StashBottomSheet({
                 </View>
               )}
               <View style={styles.playHint}>
-                <Icon name="play" size={13} color={colors.background} />
+                <Icon name="play" size={13} color={colors.onPrimary} />
                 <AppText style={styles.playHintText}>Watch</AppText>
               </View>
             </Pressable>
@@ -319,7 +321,7 @@ export function StashBottomSheet({
                     <Icon
                       name="check"
                       size={18}
-                      color={freshVisited ? colors.background : colors.success}
+                      color={freshVisited ? colors.onSuccess : colors.success}
                     />
                     <AppText
                       variant="bold"
@@ -385,6 +387,8 @@ function FriendAvatar({
   profile: Profile;
   overlap: boolean;
 }): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const initial = (profile.display_name ?? profile.username)
     .charAt(0)
     .toUpperCase();
@@ -401,159 +405,161 @@ function FriendAvatar({
   );
 }
 
-const styles = StyleSheet.create({
-  sheetBackground: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-  },
-  handle: {
-    backgroundColor: colors.border,
-    width: 44,
-  },
-  content: {
-    paddingHorizontal: spacing.xl,
-  },
-  thumbWrap: {
-    width: '100%',
-    aspectRatio: 16 / 10,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  thumb: {
-    width: '100%',
-    height: '100%',
-  },
-  thumbFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  thumbFallbackText: {
-    textAlign: 'center',
-  },
-  playHint: {
-    position: 'absolute',
-    right: spacing.sm,
-    bottom: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: 'rgba(63,53,38,0.78)',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  playHintText: {
-    color: colors.background,
-    fontSize: 12.5,
-    fontWeight: '600',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-  },
-  title: {
-    flexShrink: 1,
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  categoryText: {
-    color: colors.onAccent,
-  },
-  address: {
-    marginTop: spacing.xs,
-  },
-  notes: {
-    marginTop: spacing.md,
-    lineHeight: 21,
-  },
-  savedDate: {
-    marginTop: spacing.md,
-  },
-  alsoSaved: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  avatarStack: {
-    flexDirection: 'row',
-  },
-  avatar: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.accent,
-    borderWidth: 1.5,
-    borderColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarOverlap: {
-    marginLeft: -8,
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarInitial: {
-    color: colors.onAccent,
-    fontSize: 12,
-  },
-  alsoSavedText: {
-    flexShrink: 1,
-  },
-  actions: {
-    marginTop: spacing.xl,
-    gap: spacing.md,
-  },
-  secondaryRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  secondaryButton: {
-    flex: 1,
-  },
-  visitedPill: {
-    minHeight: 50,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.success,
-    backgroundColor: 'rgba(127,168,106,0.18)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  visitedPillFresh: {
-    backgroundColor: colors.success,
-  },
-  visitedText: {
-    color: colors.success,
-  },
-  visitedTextFresh: {
-    color: colors.background,
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    sheetBackground: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: radius.lg,
+      borderTopRightRadius: radius.lg,
+    },
+    handle: {
+      backgroundColor: c.border,
+      width: 44,
+    },
+    content: {
+      paddingHorizontal: spacing.xl,
+    },
+    thumbWrap: {
+      width: '100%',
+      aspectRatio: 16 / 10,
+      borderRadius: radius.md,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surfaceElevated,
+    },
+    thumb: {
+      width: '100%',
+      height: '100%',
+    },
+    thumbFallback: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    thumbFallbackText: {
+      textAlign: 'center',
+    },
+    playHint: {
+      position: 'absolute',
+      right: spacing.sm,
+      bottom: spacing.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      backgroundColor: c.scrim,
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    playHintText: {
+      color: c.onPrimary,
+      fontSize: 12.5,
+      fontWeight: '600',
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: spacing.lg,
+      gap: spacing.sm,
+    },
+    title: {
+      flexShrink: 1,
+    },
+    categoryChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      backgroundColor: c.accent,
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    categoryText: {
+      color: c.onAccent,
+    },
+    address: {
+      marginTop: spacing.xs,
+    },
+    notes: {
+      marginTop: spacing.md,
+      lineHeight: 21,
+    },
+    savedDate: {
+      marginTop: spacing.md,
+    },
+    alsoSaved: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.md,
+      backgroundColor: c.surfaceElevated,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    avatarStack: {
+      flexDirection: 'row',
+    },
+    avatar: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: c.highlight,
+      borderWidth: 1.5,
+      borderColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarOverlap: {
+      marginLeft: -8,
+    },
+    avatarImage: {
+      width: '100%',
+      height: '100%',
+    },
+    avatarInitial: {
+      color: c.onHighlight,
+      fontSize: 12,
+    },
+    alsoSavedText: {
+      flexShrink: 1,
+    },
+    actions: {
+      marginTop: spacing.xl,
+      gap: spacing.md,
+    },
+    secondaryRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    secondaryButton: {
+      flex: 1,
+    },
+    visitedPill: {
+      minHeight: 50,
+      borderRadius: radius.md,
+      borderWidth: 1.5,
+      borderColor: c.success,
+      backgroundColor: `${c.success}24`,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+    },
+    visitedPillFresh: {
+      backgroundColor: c.success,
+    },
+    visitedText: {
+      color: c.success,
+    },
+    visitedTextFresh: {
+      color: c.onSuccess,
+    },
+  });
+}

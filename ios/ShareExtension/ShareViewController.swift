@@ -9,7 +9,6 @@
 //
 
 import UIKit
-import UniformTypeIdentifiers
 
 class ShareViewController: UIViewController {
 
@@ -39,8 +38,8 @@ class ShareViewController: UIViewController {
       return complete()
     }
 
-    let urlType = UTType.url.identifier
-    let textType = UTType.plainText.identifier
+    let urlType = "public.url"
+    let textType = "public.plain-text"
 
     // Prefer a real URL attachment (how TikTok and most apps share a link).
     if let provider = providers.first(where: {

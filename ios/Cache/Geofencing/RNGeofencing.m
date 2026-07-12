@@ -19,8 +19,6 @@ static const NSInteger kWeekMinutes = 7 * 1440;
 @property (nonatomic, strong) CLLocationManager *manager;
 /** Full list of unvisited stashes pushed from JS: {id, name, lat, lng}. */
 @property (nonatomic, strong) NSArray<NSDictionary *> *stashes;
-/** Guards the When-In-Use → Always escalation so we prompt for it only once. */
-@property (nonatomic, assign) BOOL didRequestAlways;
 @end
 
 @implementation RNGeofencing
@@ -52,12 +50,12 @@ RCT_EXPORT_METHOD(requestAlwaysAuthorization) {
 RCT_EXPORT_METHOD(setGeofences:(NSArray *)stashes) {
   self.stashes = stashes ?: @[];
   dispatch_async(dispatch_get_main_queue(), ^{
-    // Only run background location once we hold "Always". Starting region /
-    // significant-change monitoring under "When In Use" is what makes iOS pop
-    // the recurring "Cache has been using your location" prompt — so until then
-    // we just hold the list and start the moment Always is granted (see
-    // -handleAuthChange).
-    if ([self currentStatus] == kCLAuthorizationStatusAuthorizedAlways) {
+    // Start as soon as we're authorized at all. After the user grants "While
+    // Using" to our Always request, iOS reports AuthorizedWhenInUse but has
+    // granted *provisional* Always, so region + significant-change monitoring
+    // works in the background. iOS then surfaces the real "keep using Always?"
+    // prompt itself, the first time a region fires while backgrounded.
+    if ([self isAuthorized]) {
       [self startBackgroundMonitoring];
     }
   });
@@ -79,23 +77,31 @@ RCT_EXPORT_METHOD(clearGeofences) {
   return [CLLocationManager authorizationStatus];
 }
 
+/** Authorized at all — full Always, or provisional Always (see -ensureAuthorization). */
+- (BOOL)isAuthorized {
+  CLAuthorizationStatus status = [self currentStatus];
+  return status == kCLAuthorizationStatusAuthorizedAlways ||
+         status == kCLAuthorizationStatusAuthorizedWhenInUse;
+}
+
 /**
- * Walk the user toward "Always" the way Apple requires: ask for When-In-Use
- * first, then escalate to Always once that's granted. Never re-prompts a
- * decided status, so it's safe to call on every launch.
+ * Ask for background location in a single prompt. We request Always directly:
+ * iOS never shows an "Always" button on a first ask, so the user sees just one
+ * "Allow While Using" dialog — but because we asked for Always, iOS grants
+ * *provisional* Always, so background region monitoring works right away and iOS
+ * surfaces the real "keep using Always?" confirmation itself, the first time a
+ * region fires while backgrounded. Never re-prompts a decided status, so it's
+ * safe to call on every launch.
  */
 - (void)ensureAuthorization {
   switch ([self currentStatus]) {
     case kCLAuthorizationStatusNotDetermined:
-      [self.manager requestWhenInUseAuthorization];
+      [self.manager requestAlwaysAuthorization];
       break;
     case kCLAuthorizationStatusAuthorizedWhenInUse:
-      if (!self.didRequestAlways) {
-        self.didRequestAlways = YES;
-        [self.manager requestAlwaysAuthorization];
-      }
-      break;
     case kCLAuthorizationStatusAuthorizedAlways:
+      // Full or provisional Always — start monitoring. Don't fire a second
+      // explicit Always prompt; iOS handles that upgrade on its own.
       [self startBackgroundMonitoring];
       break;
     default:
@@ -103,9 +109,14 @@ RCT_EXPORT_METHOD(clearGeofences) {
   }
 }
 
-/** Begin background location work. Only ever called while holding "Always". */
+/** Begin background location work. Called under full or provisional Always. */
 - (void)startBackgroundMonitoring {
-  self.manager.allowsBackgroundLocationUpdates = YES;
+  // allowsBackgroundLocationUpdates drives the *continuous* updates API and is
+  // only appropriate under full Always. Region monitoring and significant-change
+  // (below) still deliver in the background under provisional Always without it,
+  // which is what powers the phase before iOS confirms the upgrade.
+  self.manager.allowsBackgroundLocationUpdates =
+      ([self currentStatus] == kCLAuthorizationStatusAuthorizedAlways);
   self.manager.pausesLocationUpdatesAutomatically = NO;
   [self.manager startMonitoringSignificantLocationChanges];
   [self syncMonitoredRegions];
@@ -234,15 +245,12 @@ RCT_EXPORT_METHOD(clearGeofences) {
 - (void)handleAuthChange {
   switch ([self currentStatus]) {
     case kCLAuthorizationStatusAuthorizedAlways:
-      [self startBackgroundMonitoring];
-      break;
     case kCLAuthorizationStatusAuthorizedWhenInUse:
-      // Foreground granted: escalate to Always once, but do NOT start background
-      // monitoring under When-In-Use — that's the source of the repeated prompt.
-      if (!self.didRequestAlways) {
-        self.didRequestAlways = YES;
-        [self.manager requestAlwaysAuthorization];
-      }
+      // Full Always, or provisional Always (user granted "While Using" to our
+      // Always request) — start/resume monitoring either way. iOS surfaces the
+      // real Always upgrade prompt itself once background events begin, so we
+      // never fire a second explicit prompt here.
+      [self startBackgroundMonitoring];
       break;
     default:
       [self stopBackgroundMonitoring];

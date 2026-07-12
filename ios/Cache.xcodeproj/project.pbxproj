@@ -16,6 +16,7 @@
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		14780FE1F6764324AA18FF94 /* .gitkeep in Resources */ = {isa = PBXBuildFile; fileRef = 9DD6348C8D3141B4BAF3CFF5 /* .gitkeep */; };
 		15EFDC0F3001C73B0031BB17 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 15EFDC0E3001C73B0031BB17 /* GoogleService-Info.plist */; };
+		15F42BDD30029A01007CC4F0 /* SharedSession.m in Sources */ = {isa = PBXBuildFile; fileRef = 15F42BDC30029A01007CC4F0 /* SharedSession.m */; };
 		15F505042FE911D000C1D5EF /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 15F504FA2FE911D000C1D5EF /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		197BC552C6F843338B1D3F5B /* DMSans-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 65EB5AD2DC0C47C7BA09A7C2 /* DMSans-Medium.ttf */; };
 		372A33F655FC453DA96CC9A4 /* Lora-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 70D267E0A210458E87F14A52 /* Lora-Bold.ttf */; };
@@ -76,6 +77,8 @@
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Cache/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		15969BA43001CDA40019F2FD /* Cache.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Cache.entitlements; path = Cache/Cache.entitlements; sourceTree = "<group>"; };
 		15EFDC0E3001C73B0031BB17 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		15F42BDB30029A01007CC4F0 /* SharedSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SharedSession.h; sourceTree = "<group>"; };
+		15F42BDC30029A01007CC4F0 /* SharedSession.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SharedSession.m; sourceTree = "<group>"; };
 		15F504FA2FE911D000C1D5EF /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		19F6CBCC0A4E27FBF8BF4A61 /* libPods-Cache-CacheTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Cache-CacheTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		257D5008BF7A3181249A66F5 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = Cache/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -204,6 +207,8 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
+				15F42BDB30029A01007CC4F0 /* SharedSession.h */,
+				15F42BDC30029A01007CC4F0 /* SharedSession.m */,
 				13B07FAE1A68108700A75B9A /* Cache */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				00E356EF1AD99517003FC87E /* CacheTests */,
@@ -575,6 +580,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
+				15F42BDD30029A01007CC4F0 /* SharedSession.m in Sources */,
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				7E84F77AC348419914C82EB4 /* RNGeofencing.m in Sources */,
 			);
@@ -720,6 +726,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -764,6 +771,7 @@
 				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;

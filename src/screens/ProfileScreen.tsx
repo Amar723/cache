@@ -4,7 +4,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {colors, spacing} from '../lib/theme';
+import {spacing, useAppTheme, type AppColors} from '../lib/theme';
 import {useAuth} from '../hooks/useAuth';
 import {useStashes} from '../hooks/useStashes';
 import {AppText, Card, PrimaryButton} from '../components/Themed';
@@ -18,6 +18,8 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
  * the live stash store so they stay in sync with "mark as visited".
  */
 export function ProfileScreen(): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<Nav>();
   const {profile, signOut, deleteAccount} = useAuth();
   const {stashes} = useStashes();
@@ -85,7 +87,7 @@ export function ProfileScreen(): React.JSX.Element {
         <View style={styles.stats}>
           <Card style={styles.statCard}>
             <View style={styles.statIcon}>
-              <Icon name="bookmark" size={18} color={colors.ink} />
+              <Icon name="bookmark" size={18} color={colors.primary} />
             </View>
             <AppText variant="serifLarge">{total}</AppText>
             <AppText variant="caption">Cached</AppText>
@@ -125,65 +127,67 @@ export function ProfileScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.background},
-  content: {
-    padding: spacing.xl,
-    flexGrow: 1,
-  },
-  identity: {
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 2,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-  },
-  avatarPlaceholder: {
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  displayName: {
-    marginBottom: 2,
-  },
-  stats: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.sm,
-  },
-  changePassword: {
-    marginTop: spacing.sm,
-  },
-  signOut: {
-    marginTop: spacing.md,
-  },
-  deleteAccount: {
-    marginTop: spacing.md,
-  },
-  footer: {
-    textAlign: 'center',
-    marginTop: 'auto',
-    paddingTop: spacing.xxl,
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: {flex: 1, backgroundColor: c.background},
+    content: {
+      padding: spacing.xl,
+      flexGrow: 1,
+    },
+    identity: {
+      alignItems: 'center',
+      marginTop: spacing.lg,
+      marginBottom: spacing.xl,
+    },
+    avatar: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      borderWidth: 2,
+      borderColor: c.border,
+      marginBottom: spacing.md,
+    },
+    avatarPlaceholder: {
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    displayName: {
+      marginBottom: 2,
+    },
+    stats: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      marginBottom: spacing.xl,
+    },
+    statCard: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    statIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.surfaceElevated,
+      borderWidth: 1,
+      borderColor: c.border,
+      marginBottom: spacing.sm,
+    },
+    changePassword: {
+      marginTop: spacing.sm,
+    },
+    signOut: {
+      marginTop: spacing.md,
+    },
+    deleteAccount: {
+      marginTop: spacing.md,
+    },
+    footer: {
+      textAlign: 'center',
+      marginTop: 'auto',
+      paddingTop: spacing.xxl,
+    },
+  });
+}

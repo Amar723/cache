@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -9,7 +9,13 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {colors, fonts, radius, spacing} from '../lib/theme';
+import {
+  fonts,
+  radius,
+  spacing,
+  useAppTheme,
+  type AppColors,
+} from '../lib/theme';
 import {useAuth} from '../hooks/useAuth';
 import {AppText, PrimaryButton} from '../components/Themed';
 
@@ -19,6 +25,8 @@ import {AppText, PrimaryButton} from '../components/Themed';
  * and then drops back into the app.
  */
 export function UpdatePasswordScreen(): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const {completePasswordReset} = useAuth();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +71,7 @@ export function UpdatePasswordScreen(): React.JSX.Element {
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
-              placeholderTextColor={colors.inkMuted}
+              placeholderTextColor={colors.textMuted}
               secureTextEntry
               style={styles.input}
             />
@@ -87,45 +95,47 @@ export function UpdatePasswordScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.background},
-  flex: {flex: 1},
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: spacing.xxl,
-  },
-  tagline: {
-    marginTop: spacing.sm,
-    color: colors.inkMuted,
-    textAlign: 'center',
-  },
-  form: {
-    width: '100%',
-  },
-  label: {
-    marginBottom: spacing.sm,
-  },
-  input: {
-    minHeight: 50,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    color: colors.ink,
-  },
-  error: {
-    color: colors.danger,
-    marginTop: spacing.lg,
-  },
-  submit: {
-    marginTop: spacing.xl,
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: {flex: 1, backgroundColor: c.background},
+    flex: {flex: 1},
+    content: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      padding: spacing.xl,
+    },
+    header: {
+      alignItems: 'center',
+      marginBottom: spacing.xxl,
+    },
+    tagline: {
+      marginTop: spacing.sm,
+      color: c.textMuted,
+      textAlign: 'center',
+    },
+    form: {
+      width: '100%',
+    },
+    label: {
+      marginBottom: spacing.sm,
+    },
+    input: {
+      minHeight: 50,
+      borderRadius: radius.md,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      paddingHorizontal: spacing.md,
+      fontFamily: fonts.regular,
+      fontSize: 15,
+      color: c.text,
+    },
+    error: {
+      color: c.danger,
+      marginTop: spacing.lg,
+    },
+    submit: {
+      marginTop: spacing.xl,
+    },
+  });
+}

@@ -2,6 +2,7 @@ import type {Session} from '@supabase/supabase-js';
 
 import {supabase} from '../lib/supabase';
 import {createStore} from '../lib/store';
+import {persistSharedSession} from '../lib/sharedSession';
 import {uploadAvatar, type AvatarUpload} from '../lib/storage';
 import type {ProfileInsert} from '../lib/database.types';
 import type {Profile} from '../types';
@@ -53,6 +54,12 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
 }
 
 async function applySession(session: Session | null): Promise<void> {
+  // Mirror the session into the App Group so the iOS share extension can save a
+  // stash as this user. This is the single funnel for every session change
+  // (initial restore, sign-in/out, and token refreshes), so the shared copy
+  // stays fresh. No-op off iOS / when the native module isn't linked.
+  persistSharedSession(session);
+
   if (!session) {
     store.setState({status: 'signedOut', session: null, profile: null});
     return;

@@ -1,9 +1,9 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
-import {colors, spacing} from '../lib/theme';
+import {spacing, useAppTheme, type AppColors} from '../lib/theme';
 import {useStash} from '../hooks/useStashes';
 import {AddStashForm} from '../components/AddStashForm';
 import {AppText} from '../components/Themed';
@@ -21,6 +21,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AddStash'>;
  * On a successful save we reset to the Map so the new pin is visible.
  */
 export function AddStashScreen({route, navigation}: Props): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const sharedUrl = route.params?.sharedUrl ?? '';
   const editStash = useStash(route.params?.stashId ?? null);
   const editing = editStash != null;
@@ -62,7 +64,7 @@ export function AddStashScreen({route, navigation}: Props): React.JSX.Element {
           style={({pressed}) => [styles.close, pressed && styles.closePressed]}
           accessibilityRole="button"
           accessibilityLabel="Close">
-          <Icon name="close" size={22} color={colors.ink} />
+          <Icon name="close" size={22} color={colors.text} />
         </Pressable>
       </View>
       <AddStashForm
@@ -75,24 +77,26 @@ export function AddStashScreen({route, navigation}: Props): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.background},
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-  },
-  close: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closePressed: {
-    opacity: 0.6,
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: {flex: 1, backgroundColor: c.background},
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.sm,
+    },
+    close: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    closePressed: {
+      opacity: 0.6,
+    },
+  });
+}

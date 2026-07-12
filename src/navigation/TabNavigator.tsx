@@ -6,7 +6,14 @@ import {
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
 
-import {colors, elevation, fonts, radius} from '../lib/theme';
+import {
+  fonts,
+  fontWeights,
+  radius,
+  useAppTheme,
+  type AppColors,
+  type AppTheme,
+} from '../lib/theme';
 import {MapScreen} from '../screens/MapScreen';
 import {SavedScreen} from '../screens/SavedScreen';
 import {FriendsScreen} from '../screens/FriendsScreen';
@@ -36,11 +43,13 @@ function TabBarIcon({
   routeName: keyof TabParamList;
   focused: boolean;
 }): React.JSX.Element {
+  const {colors} = useAppTheme();
+
   return (
     <Icon
       name={ICONS[routeName]}
       size={23}
-      color={focused ? colors.ink : colors.inkMuted}
+      color={focused ? colors.primary : colors.textMuted}
       strokeWidth={focused ? 2 : 1.6}
     />
   );
@@ -48,6 +57,11 @@ function TabBarIcon({
 
 function FloatingTabBar(props: BottomTabBarProps): React.JSX.Element {
   const {visible} = useTabBarVisibility();
+  const {colors, elevation} = useAppTheme();
+  const styles = useMemo(
+    () => createStyles(colors, elevation),
+    [colors, elevation],
+  );
   const hiddenProgress = useRef(new Animated.Value(visible ? 0 : 1)).current;
 
   useEffect(() => {
@@ -82,13 +96,14 @@ function FloatingTabBar(props: BottomTabBarProps): React.JSX.Element {
   );
 }
 
-/**
- * Floating parchment tab bar. It is absolutely positioned so the map renders
- * full-bleed behind it, satisfying "the map fills the entire screen behind the
- * tab bar".
- */
+/** Floating tab bar so the map renders full-bleed behind the controls. */
 export function TabNavigator(): React.JSX.Element {
   const incomingRequests = useIncomingRequestCount();
+  const {colors, elevation} = useAppTheme();
+  const styles = useMemo(
+    () => createStyles(colors, elevation),
+    [colors, elevation],
+  );
   const [tabBarVisible, setTabBarVisible] = useState(true);
   const tabBarVisibility = useMemo(
     () => ({visible: tabBarVisible, setVisible: setTabBarVisible}),
@@ -102,8 +117,8 @@ export function TabNavigator(): React.JSX.Element {
         screenOptions={({route}) => ({
           headerShown: false,
           tabBarShowLabel: true,
-          tabBarActiveTintColor: colors.ink,
-          tabBarInactiveTintColor: colors.inkMuted,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
           tabBarStyle: styles.tabBarInner,
           tabBarLabelStyle: styles.tabLabel,
           tabBarItemStyle: styles.tabItem,
@@ -126,34 +141,37 @@ export function TabNavigator(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  tabBar: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: Platform.OS === 'ios' ? 28 : 16,
-    height: 64,
-    borderRadius: radius.lg,
-    backgroundColor: colors.background,
-    borderTopWidth: 0,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...elevation.high,
-  },
-  tabBarInner: {
-    height: 64,
-    backgroundColor: 'transparent',
-    borderTopWidth: 0,
-    elevation: 0,
-    shadowOpacity: 0,
-    paddingTop: 8,
-    paddingBottom: 8,
-  },
-  tabItem: {
-    paddingVertical: 4,
-  },
-  tabLabel: {
-    fontFamily: fonts.medium,
-    fontSize: 11.5,
-  },
-});
+function createStyles(c: AppColors, appElevation: AppTheme['elevation']) {
+  return StyleSheet.create({
+    tabBar: {
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      bottom: Platform.OS === 'ios' ? 28 : 16,
+      height: 64,
+      borderRadius: radius.xl,
+      backgroundColor: c.glass,
+      borderTopWidth: 0,
+      borderWidth: 1,
+      borderColor: c.glassBorder,
+      ...appElevation.high,
+    },
+    tabBarInner: {
+      height: 64,
+      backgroundColor: 'transparent',
+      borderTopWidth: 0,
+      elevation: 0,
+      shadowOpacity: 0,
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
+    tabItem: {
+      paddingVertical: 4,
+    },
+    tabLabel: {
+      fontFamily: fonts.medium,
+      fontWeight: fontWeights.medium,
+      fontSize: 11.5,
+    },
+  });
+}

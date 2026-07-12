@@ -1,7 +1,7 @@
 import React from 'react';
 import Svg, {Circle, Line, Path, Polygon, Polyline} from 'react-native-svg';
 
-import {colors} from '../lib/theme';
+import {useAppTheme} from '../lib/theme';
 import type {Category} from '../types';
 
 /**
@@ -160,21 +160,24 @@ interface IconProps {
 export function Icon({
   name,
   size = 24,
-  color = colors.ink,
+  color,
   strokeWidth = 1.75,
 }: IconProps): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const iconColor = color ?? colors.text;
+
   return (
     <Svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      stroke={color}
+      stroke={iconColor}
       strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round">
       {/* Solid glyphs read `currentFill`; swap it for the live colour. */}
-      {replaceFill(PATHS[name], color)}
+      {replaceFill(PATHS[name], iconColor)}
     </Svg>
   );
 }

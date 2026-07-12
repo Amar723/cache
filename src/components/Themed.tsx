@@ -10,11 +10,18 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import {colors, elevation, fonts, radius, spacing} from '../lib/theme';
+import {
+  fonts,
+  fontWeights,
+  radius,
+  spacing,
+  useAppTheme,
+  type AppColors,
+} from '../lib/theme';
 
 /**
- * Typed text + button atoms so every surface uses DMSans / Lora and the
- * parchment palette. Screens never reach for the raw `<Text>` default font.
+ * Typed text + button atoms so every surface uses the app theme and the native
+ * system font. Screens never reach for the raw `<Text>` default font.
  */
 
 type TextVariant =
@@ -26,15 +33,52 @@ type TextVariant =
   | 'serifTitle'
   | 'serifLarge';
 
-const VARIANT_STYLES: Record<TextVariant, TextStyle> = {
-  body: {fontFamily: fonts.regular, fontSize: 15, color: colors.ink},
-  medium: {fontFamily: fonts.medium, fontSize: 15, color: colors.ink},
-  bold: {fontFamily: fonts.bold, fontSize: 15, color: colors.ink},
-  caption: {fontFamily: fonts.regular, fontSize: 12.5, color: colors.inkMuted},
-  serif: {fontFamily: fonts.serif, fontSize: 17, color: colors.ink},
-  serifTitle: {fontFamily: fonts.serifBold, fontSize: 22, color: colors.ink},
-  serifLarge: {fontFamily: fonts.serifBold, fontSize: 30, color: colors.ink},
-};
+function variantStyles(c: AppColors): Record<TextVariant, TextStyle> {
+  return {
+    body: {
+      fontFamily: fonts.regular,
+      fontWeight: fontWeights.regular,
+      fontSize: 15,
+      color: c.text,
+    },
+    medium: {
+      fontFamily: fonts.medium,
+      fontWeight: fontWeights.medium,
+      fontSize: 15,
+      color: c.text,
+    },
+    bold: {
+      fontFamily: fonts.bold,
+      fontWeight: fontWeights.bold,
+      fontSize: 15,
+      color: c.text,
+    },
+    caption: {
+      fontFamily: fonts.regular,
+      fontWeight: fontWeights.regular,
+      fontSize: 12.5,
+      color: c.textMuted,
+    },
+    serif: {
+      fontFamily: fonts.serif,
+      fontWeight: fontWeights.serif,
+      fontSize: 17,
+      color: c.text,
+    },
+    serifTitle: {
+      fontFamily: fonts.serifBold,
+      fontWeight: fontWeights.serifBold,
+      fontSize: 22,
+      color: c.text,
+    },
+    serifLarge: {
+      fontFamily: fonts.serifBold,
+      fontWeight: fontWeights.serifBold,
+      fontSize: 30,
+      color: c.text,
+    },
+  };
+}
 
 interface AppTextProps extends TextProps {
   variant?: TextVariant;
@@ -45,7 +89,8 @@ export function AppText({
   style,
   ...rest
 }: AppTextProps): React.JSX.Element {
-  return <Text {...rest} style={[VARIANT_STYLES[variant], style]} />;
+  const {colors} = useAppTheme();
+  return <Text {...rest} style={[variantStyles(colors)[variant], style]} />;
 }
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger';
@@ -67,19 +112,20 @@ export function PrimaryButton({
   variant = 'primary',
   style,
 }: PrimaryButtonProps): React.JSX.Element {
+  const {colors} = useAppTheme();
   const isDisabled = disabled || loading;
 
   const palette: Record<
     ButtonVariant,
     {bg: string; fg: string; border: string}
   > = {
-    primary: {bg: colors.accent, fg: colors.onAccent, border: colors.accent},
+    primary: {bg: colors.primary, fg: colors.onPrimary, border: colors.primary},
     secondary: {
-      bg: 'transparent',
-      fg: colors.ink,
+      bg: colors.surface,
+      fg: colors.text,
       border: colors.border,
     },
-    danger: {bg: 'transparent', fg: colors.danger, border: colors.danger},
+    danger: {bg: colors.surface, fg: colors.danger, border: colors.danger},
   };
 
   const p = palette[variant];
@@ -108,7 +154,7 @@ export function PrimaryButton({
   );
 }
 
-/** A simple parchment card surface. */
+/** A simple elevated card surface. */
 export function Card({
   children,
   style,
@@ -116,7 +162,21 @@ export function Card({
   children: React.ReactNode;
   style?: ViewStyle;
 }): React.JSX.Element {
-  return <View style={[styles.card, style]}>{children}</View>;
+  const {colors, elevation} = useAppTheme();
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          ...elevation.low,
+        },
+        style,
+      ]}>
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -130,14 +190,12 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontFamily: fonts.bold,
+    fontWeight: fontWeights.bold,
     fontSize: 16,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.lg,
-    ...elevation.low,
   },
 });

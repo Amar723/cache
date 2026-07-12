@@ -4,7 +4,7 @@ import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import BackgroundFetch from 'react-native-background-fetch';
 
-import {colors} from './src/lib/theme';
+import {CacheThemeProvider, useAppTheme} from './src/lib/theme';
 import {runProximityCheck} from './src/lib/proximity';
 import {requestNotificationPermissions} from './src/lib/notifications';
 import {initAuth, useAuth} from './src/hooks/useAuth';
@@ -46,7 +46,16 @@ async function configureBackgroundFetch(): Promise<void> {
 }
 
 function App(): React.JSX.Element {
+  return (
+    <CacheThemeProvider>
+      <AppShell />
+    </CacheThemeProvider>
+  );
+}
+
+function AppShell(): React.JSX.Element {
   const {status} = useAuth();
+  const {colors, statusBarStyle} = useAppTheme();
 
   // Once signed in, mirror unvisited stashes into native iOS geofences (no-op on
   // Android, which uses the background-fetch poller below).
@@ -91,10 +100,11 @@ function App(): React.JSX.Element {
   }, []);
 
   return (
-    <GestureHandlerRootView style={styles.root}>
+    <GestureHandlerRootView
+      style={[styles.root, {backgroundColor: colors.background}]}>
       <SafeAreaProvider>
         <StatusBar
-          barStyle="dark-content"
+          barStyle={statusBarStyle}
           backgroundColor={colors.background}
         />
         <RootNavigator />
@@ -105,7 +115,7 @@ function App(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  root: {flex: 1, backgroundColor: colors.background},
+  root: {flex: 1},
 });
 
 export default App;

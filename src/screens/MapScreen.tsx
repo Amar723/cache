@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {ActivityIndicator, Pressable, StyleSheet, View} from 'react-native';
 import MapView, {
   type MapStyleElement,
@@ -9,11 +9,11 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 
 import {
-  colors,
-  elevation,
   radius,
-  RETRO_MAP_STYLE,
   spacing,
+  useAppTheme,
+  type AppColors,
+  type AppTheme,
 } from '../lib/theme';
 import {useStashes, getStashById, refreshStashes} from '../hooks/useStashes';
 import {useLocation} from '../hooks/useLocation';
@@ -48,10 +48,15 @@ function regionFor(point: {lat: number; lng: number}, delta = 0.05): Region {
 }
 
 /**
- * Full-screen retro map. Renders every stash as a custom pin and hosts the
+ * Full-screen map. Renders every stash as a custom pin and hosts the
  * shared detail sheet. Also the landing point for notification deep links.
  */
 export function MapScreen(): React.JSX.Element {
+  const {colors, elevation, mapStyle} = useAppTheme();
+  const styles = useMemo(
+    () => createStyles(colors, elevation),
+    [colors, elevation],
+  );
   const {stashes} = useStashes();
   const {location} = useLocation();
   const {setVisible: setTabBarVisible} = useTabBarVisibility();
@@ -212,7 +217,7 @@ export function MapScreen(): React.JSX.Element {
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={StyleSheet.absoluteFill}
-          customMapStyle={RETRO_MAP_STYLE as MapStyleElement[]}
+          customMapStyle={mapStyle as unknown as MapStyleElement[]}
           initialRegion={initialRegion}
           showsUserLocation
           showsMyLocationButton={false}
@@ -231,7 +236,7 @@ export function MapScreen(): React.JSX.Element {
         </MapView>
       ) : (
         <View style={styles.locating}>
-          <ActivityIndicator color={colors.ink} />
+          <ActivityIndicator color={colors.primary} />
           <AppText variant="caption" style={styles.locatingText}>
             Finding your location…
           </AppText>
@@ -259,7 +264,7 @@ export function MapScreen(): React.JSX.Element {
             ]}
             accessibilityRole="button"
             accessibilityLabel="Center on my location">
-            <Icon name="locate" size={24} color={colors.ink} />
+            <Icon name="locate" size={24} color={colors.text} />
           </Pressable>
         </View>
       </SafeAreaView>
@@ -287,90 +292,92 @@ export function MapScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: colors.background},
-  locating: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.background,
-  },
-  locatingText: {
-    color: colors.inkMuted,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'space-between',
-  },
-  topBar: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    alignItems: 'flex-start',
-  },
-  titlePill: {
-    backgroundColor: colors.background,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    ...elevation.low,
-  },
-  titleText: {
-    fontSize: 18,
-  },
-  bottomControls: {
-    alignItems: 'flex-end',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 96, // clear the floating tab bar
-  },
-  recenter: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...elevation.low,
-  },
-  recenterPressed: {
-    opacity: 0.85,
-    transform: [{scale: 0.96}],
-  },
-  emptyHint: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 140,
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  emptyPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.background,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    ...elevation.low,
-  },
-  emptyIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  emptyText: {
-    flexShrink: 1,
-  },
-});
+function createStyles(c: AppColors, appElevation: AppTheme['elevation']) {
+  return StyleSheet.create({
+    container: {flex: 1, backgroundColor: c.background},
+    locating: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.md,
+      backgroundColor: c.background,
+    },
+    locatingText: {
+      color: c.textMuted,
+    },
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: 'space-between',
+    },
+    topBar: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
+      alignItems: 'flex-start',
+    },
+    titlePill: {
+      backgroundColor: c.glass,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.glassBorder,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      ...appElevation.low,
+    },
+    titleText: {
+      fontSize: 18,
+    },
+    bottomControls: {
+      alignItems: 'flex-end',
+      paddingHorizontal: spacing.lg,
+      paddingBottom: 96, // clear the floating tab bar
+    },
+    recenter: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: c.glass,
+      borderWidth: 1,
+      borderColor: c.glassBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...appElevation.low,
+    },
+    recenterPressed: {
+      opacity: 0.85,
+      transform: [{scale: 0.96}],
+    },
+    emptyHint: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 140,
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    emptyPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      backgroundColor: c.glass,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.glassBorder,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      ...appElevation.low,
+    },
+    emptyIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    emptyText: {
+      flexShrink: 1,
+    },
+  });
+}

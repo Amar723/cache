@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,7 +13,13 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {colors, fonts, radius, spacing} from '../lib/theme';
+import {
+  fonts,
+  radius,
+  spacing,
+  useAppTheme,
+  type AppColors,
+} from '../lib/theme';
 import {useAuth} from '../hooks/useAuth';
 import {AppText, PrimaryButton} from '../components/Themed';
 import type {RootStackParamList} from '../types';
@@ -25,6 +31,8 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
  * before updating so a live app session alone is not enough to change it.
  */
 export function ChangePasswordScreen(): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<Nav>();
   const {changePassword} = useAuth();
   const [currentPassword, setCurrentPassword] = useState('');
@@ -87,7 +95,7 @@ export function ChangePasswordScreen(): React.JSX.Element {
               value={currentPassword}
               onChangeText={setCurrentPassword}
               placeholder="Current password"
-              placeholderTextColor={colors.inkMuted}
+              placeholderTextColor={colors.textMuted}
               secureTextEntry
               textContentType="password"
               style={styles.input}
@@ -100,7 +108,7 @@ export function ChangePasswordScreen(): React.JSX.Element {
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder="New password"
-              placeholderTextColor={colors.inkMuted}
+              placeholderTextColor={colors.textMuted}
               secureTextEntry
               textContentType="newPassword"
               style={styles.input}
@@ -113,7 +121,7 @@ export function ChangePasswordScreen(): React.JSX.Element {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirm new password"
-              placeholderTextColor={colors.inkMuted}
+              placeholderTextColor={colors.textMuted}
               secureTextEntry
               textContentType="newPassword"
               style={styles.input}
@@ -147,55 +155,57 @@ export function ChangePasswordScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.background},
-  flex: {flex: 1},
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: spacing.xxl,
-  },
-  tagline: {
-    marginTop: spacing.sm,
-    color: colors.inkMuted,
-    textAlign: 'center',
-  },
-  form: {
-    width: '100%',
-  },
-  label: {
-    marginBottom: spacing.sm,
-  },
-  spaced: {
-    marginTop: spacing.lg,
-  },
-  input: {
-    minHeight: 50,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    color: colors.ink,
-  },
-  error: {
-    color: colors.danger,
-    marginTop: spacing.lg,
-  },
-  submit: {
-    marginTop: spacing.xl,
-  },
-  cancel: {
-    marginTop: spacing.lg,
-    alignItems: 'center',
-  },
-  cancelText: {
-    color: colors.inkMuted,
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: {flex: 1, backgroundColor: c.background},
+    flex: {flex: 1},
+    content: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      padding: spacing.xl,
+    },
+    header: {
+      alignItems: 'center',
+      marginBottom: spacing.xxl,
+    },
+    tagline: {
+      marginTop: spacing.sm,
+      color: c.textMuted,
+      textAlign: 'center',
+    },
+    form: {
+      width: '100%',
+    },
+    label: {
+      marginBottom: spacing.sm,
+    },
+    spaced: {
+      marginTop: spacing.lg,
+    },
+    input: {
+      minHeight: 50,
+      borderRadius: radius.md,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      paddingHorizontal: spacing.md,
+      fontFamily: fonts.regular,
+      fontSize: 15,
+      color: c.text,
+    },
+    error: {
+      color: c.danger,
+      marginTop: spacing.lg,
+    },
+    submit: {
+      marginTop: spacing.xl,
+    },
+    cancel: {
+      marginTop: spacing.lg,
+      alignItems: 'center',
+    },
+    cancelText: {
+      color: c.textMuted,
+    },
+  });
+}

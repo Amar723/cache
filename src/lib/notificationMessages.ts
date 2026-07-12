@@ -13,8 +13,7 @@ const ARRIVED_MESSAGES: Record<Category, Array<(name: string) => string>> = {
     name => `${name} secured. Hunger never stood a chance.`,
     name => `You pulled up to ${name}. Respectable behaviour.`,
     name => `${name}: unlocked. The fork is mightier than the plan.`,
-    name =>
-      `You're at ${name}. This is what discipline looks like, apparently.`,
+    name => `You're at ${name}. This is what discipline looks like, apparently.`,
     name => `${name} reached. Your stomach has been briefed.`,
     name => `You made it to ${name}. A strong showing from everyone involved.`,
     name => `${name} secured. The appetite was not imaginary.`,

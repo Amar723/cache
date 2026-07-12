@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Geolocation from '@react-native-community/geolocation';
 
 import type {LatLng} from '../lib/distance';
+import {requestAlwaysPermission} from '../lib/geofencing';
 import {loadLastLocation, saveLastLocation} from '../lib/lastLocation';
 
 /** Set once we've asked for background location, so we never nag. */
@@ -40,8 +41,14 @@ async function requestPermission(): Promise<boolean> {
     return result === PermissionsAndroid.RESULTS.GRANTED;
   }
 
-  // iOS: configured for whenInUse; this surfaces the system prompt.
-  Geolocation.requestAuthorization();
+  // iOS: route the single location prompt through the native geofencing module,
+  // which requests Always directly. iOS never offers an "Always" button on a
+  // first ask, so the user still sees just one "Allow While Using" dialog — but
+  // because we asked for Always, iOS grants *provisional* Always: the map works
+  // now, background geofencing runs immediately, and iOS surfaces its own "keep
+  // using Always?" confirmation later, the first time a region fires in the
+  // background. This replaces the old whenInUse-then-Always flow (two dialogs).
+  requestAlwaysPermission();
   return true;
 }
 

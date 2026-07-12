@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
 import MapView, {
   type MapStyleElement,
@@ -9,11 +9,11 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
 import {
-  colors,
-  elevation,
   radius,
-  RETRO_MAP_STYLE,
   spacing,
+  useAppTheme,
+  type AppColors,
+  type AppTheme,
 } from '../lib/theme';
 import {useFriendStashes} from '../hooks/useFriendStashes';
 import {StashPin} from '../components/StashPin';
@@ -32,11 +32,16 @@ const DEFAULT_REGION: Region = {
 type Props = NativeStackScreenProps<RootStackParamList, 'FriendMap'>;
 
 /**
- * A friend's shared pins on a read-only map. Reuses StashPin, the retro map
- * style, and StashBottomSheet (in read-only mode) — only the data source
- * differs from the user's own MapScreen.
+ * A friend's shared pins on a read-only map. Reuses StashPin and
+ * StashBottomSheet (in read-only mode) — only the data source differs from the
+ * user's own MapScreen.
  */
 export function FriendMapScreen({route, navigation}: Props): React.JSX.Element {
+  const {colors, elevation, mapStyle} = useAppTheme();
+  const styles = useMemo(
+    () => createStyles(colors, elevation),
+    [colors, elevation],
+  );
   const {friendId, username} = route.params;
   const {stashes, loading} = useFriendStashes(friendId);
   const [selected, setSelected] = useState<Stash | null>(null);
@@ -58,7 +63,7 @@ export function FriendMapScreen({route, navigation}: Props): React.JSX.Element {
         key={stashes.length > 0 ? stashes[0].id : 'empty'}
         provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFill}
-        customMapStyle={RETRO_MAP_STYLE as MapStyleElement[]}
+        customMapStyle={mapStyle as unknown as MapStyleElement[]}
         initialRegion={initialRegion}
         showsMyLocationButton={false}
         toolbarEnabled={false}>
@@ -78,7 +83,7 @@ export function FriendMapScreen({route, navigation}: Props): React.JSX.Element {
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Back">
-            <Icon name="close" size={22} color={colors.ink} />
+            <Icon name="close" size={22} color={colors.text} />
           </Pressable>
           <View style={styles.titlePill}>
             <AppText variant="serif" style={styles.titleText}>
@@ -110,57 +115,59 @@ export function FriendMapScreen({route, navigation}: Props): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: colors.background},
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  back: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...elevation.low,
-  },
-  backPressed: {opacity: 0.85},
-  titlePill: {
-    backgroundColor: colors.background,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    ...elevation.low,
-  },
-  titleText: {
-    fontSize: 18,
-  },
-  emptyHint: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 140,
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  emptyPill: {
-    backgroundColor: colors.background,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    ...elevation.low,
-  },
-});
+function createStyles(c: AppColors, appElevation: AppTheme['elevation']) {
+  return StyleSheet.create({
+    container: {flex: 1, backgroundColor: c.background},
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
+    },
+    back: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: c.glass,
+      borderWidth: 1,
+      borderColor: c.glassBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...appElevation.low,
+    },
+    backPressed: {opacity: 0.85},
+    titlePill: {
+      backgroundColor: c.glass,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.glassBorder,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      ...appElevation.low,
+    },
+    titleText: {
+      fontSize: 18,
+    },
+    emptyHint: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 140,
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    emptyPill: {
+      backgroundColor: c.glass,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: c.glassBorder,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      ...appElevation.low,
+    },
+  });
+}

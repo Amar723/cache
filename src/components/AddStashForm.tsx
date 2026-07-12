@@ -17,7 +17,13 @@ import {
 } from 'react-native-google-places-autocomplete';
 
 import {ENV} from '../lib/config';
-import {colors, fonts, radius, spacing} from '../lib/theme';
+import {
+  fonts,
+  radius,
+  spacing,
+  useAppTheme,
+  type AppColors,
+} from '../lib/theme';
 import {
   fetchInstagramThumbnail,
   fetchTikTokThumbnail,
@@ -74,6 +80,8 @@ export function AddStashForm({
   editStash = null,
   onSubmitted,
 }: AddStashFormProps): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const editing = editStash != null;
   // Editing keeps the place details up top and the link optional, same as a
   // manual add.
@@ -287,7 +295,7 @@ export function AddStashForm({
   const previewBlock = (
     <View style={styles.preview}>
       {thumbLoading ? (
-        <ActivityIndicator color={colors.ink} />
+        <ActivityIndicator color={colors.primary} />
       ) : thumbnailUrl ? (
         <Image
           source={{uri: thumbnailUrl}}
@@ -314,7 +322,7 @@ export function AddStashForm({
         value={url}
         onChangeText={setUrl}
         placeholder="Paste a TikTok or Instagram Reel link"
-        placeholderTextColor={colors.inkMuted}
+        placeholderTextColor={colors.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="url"
@@ -329,7 +337,7 @@ export function AddStashForm({
         value={placeName}
         onChangeText={setPlaceName}
         placeholder="e.g. Joe's Pizza"
-        placeholderTextColor={colors.inkMuted}
+        placeholderTextColor={colors.textMuted}
         style={styles.input}
         returnKeyType="next"
       />
@@ -371,7 +379,7 @@ export function AddStashForm({
         disableScroll
         keyboardShouldPersistTaps="handled"
         textInputProps={{
-          placeholderTextColor: colors.inkMuted,
+          placeholderTextColor: colors.textMuted,
         }}
         styles={{
           textInput: styles.input,
@@ -407,7 +415,7 @@ export function AddStashForm({
         value={notes}
         onChangeText={setNotes}
         placeholder="Why you saved it, what to order, who recommended it…"
-        placeholderTextColor={colors.inkMuted}
+        placeholderTextColor={colors.textMuted}
         style={[styles.input, styles.multiline]}
         multiline
         numberOfLines={4}
@@ -499,6 +507,9 @@ function Field({
   label: string;
   children: React.ReactNode;
 }): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.field}>
       <AppText variant="bold" style={styles.label}>
@@ -509,117 +520,119 @@ function Field({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {flex: 1},
-  content: {
-    padding: spacing.xl,
-    paddingBottom: spacing.xxl * 2,
-  },
-  preview: {
-    width: '100%',
-    aspectRatio: 16 / 10,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-  },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  previewFallback: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  previewUrl: {
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
-  field: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    marginBottom: spacing.sm,
-  },
-  input: {
-    minHeight: 50,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    color: colors.ink,
-  },
-  multiline: {
-    minHeight: 96,
-    paddingTop: spacing.md,
-  },
-  // Google Places overrides
-  placesContainer: {
-    flex: 0,
-  },
-  placesList: {
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    marginTop: spacing.xs,
-  },
-  placesRow: {
-    backgroundColor: colors.surface,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  placesDescription: {
-    color: colors.ink,
-    fontFamily: fonts.regular,
-  },
-  placesSeparator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-  },
-  selectedAddress: {
-    marginTop: spacing.sm,
-    color: colors.success,
-  },
-  duplicate: {
-    marginTop: spacing.xs,
-    color: colors.danger,
-  },
-  error: {
-    color: colors.danger,
-    marginBottom: spacing.md,
-  },
-  submit: {
-    marginTop: spacing.sm,
-  },
-  segment: {
-    flexDirection: 'row',
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-  },
-  segmentItem: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  segmentItemActive: {
-    backgroundColor: colors.ink,
-  },
-  segmentTextActive: {
-    color: colors.background,
-  },
-  segmentHint: {
-    marginTop: spacing.sm,
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    flex: {flex: 1},
+    content: {
+      padding: spacing.xl,
+      paddingBottom: spacing.xxl * 2,
+    },
+    preview: {
+      width: '100%',
+      aspectRatio: 16 / 10,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      overflow: 'hidden',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.xl,
+    },
+    previewImage: {
+      width: '100%',
+      height: '100%',
+    },
+    previewFallback: {
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    previewUrl: {
+      marginTop: spacing.xs,
+      textAlign: 'center',
+    },
+    field: {
+      marginBottom: spacing.lg,
+    },
+    label: {
+      marginBottom: spacing.sm,
+    },
+    input: {
+      minHeight: 50,
+      borderRadius: radius.md,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      fontFamily: fonts.regular,
+      fontSize: 15,
+      color: c.text,
+    },
+    multiline: {
+      minHeight: 96,
+      paddingTop: spacing.md,
+    },
+    // Google Places overrides
+    placesContainer: {
+      flex: 0,
+    },
+    placesList: {
+      borderRadius: radius.md,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      marginTop: spacing.xs,
+    },
+    placesRow: {
+      backgroundColor: c.surface,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+    },
+    placesDescription: {
+      color: c.text,
+      fontFamily: fonts.regular,
+    },
+    placesSeparator: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: c.border,
+    },
+    selectedAddress: {
+      marginTop: spacing.sm,
+      color: c.success,
+    },
+    duplicate: {
+      marginTop: spacing.xs,
+      color: c.danger,
+    },
+    error: {
+      color: c.danger,
+      marginBottom: spacing.md,
+    },
+    submit: {
+      marginTop: spacing.sm,
+    },
+    segment: {
+      flexDirection: 'row',
+      borderWidth: 1.5,
+      borderColor: c.border,
+      borderRadius: radius.md,
+      overflow: 'hidden',
+    },
+    segmentItem: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      backgroundColor: c.surface,
+    },
+    segmentItemActive: {
+      backgroundColor: c.primary,
+    },
+    segmentTextActive: {
+      color: c.onPrimary,
+    },
+    segmentHint: {
+      marginTop: spacing.sm,
+    },
+  });
+}

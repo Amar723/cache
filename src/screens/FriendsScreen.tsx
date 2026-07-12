@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -12,7 +12,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 
-import {colors, radius, spacing} from '../lib/theme';
+import {radius, spacing, useAppTheme, type AppColors} from '../lib/theme';
 import {useFriends} from '../hooks/useFriends';
 import {AppText} from '../components/Themed';
 import {Icon} from '../components/Icon';
@@ -25,6 +25,8 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
  * open a friend's shared map. Refreshes whenever the tab regains focus.
  */
 export function FriendsScreen(): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<Nav>();
   const {
     friends,
@@ -98,17 +100,17 @@ export function FriendsScreen(): React.JSX.Element {
         keyboardShouldPersistTaps="handled">
         {/* Search */}
         <View style={styles.searchBox}>
-          <Icon name="user" size={18} color={colors.inkMuted} />
+          <Icon name="user" size={18} color={colors.textMuted} />
           <TextInput
             value={query}
             onChangeText={setQuery}
             placeholder="Find people by username"
-            placeholderTextColor={colors.inkMuted}
+            placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
             style={styles.searchInput}
           />
-          {searching ? <ActivityIndicator color={colors.inkMuted} /> : null}
+          {searching ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
 
         {query.trim().length >= 2 ? (
@@ -208,6 +210,9 @@ function Section({
   title: string;
   children: React.ReactNode;
 }): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.section}>
       <AppText variant="bold" style={styles.sectionTitle}>
@@ -227,6 +232,8 @@ function PersonRow({
   onPress?: () => void;
   children: React.ReactNode;
 }): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const initial = (profile.display_name ?? profile.username)
     .charAt(0)
     .toUpperCase();
@@ -267,6 +274,9 @@ function Action({
   onPress: () => void;
   variant?: 'primary' | 'muted';
 }): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Pressable
       onPress={onPress}
@@ -286,6 +296,9 @@ function Action({
 }
 
 function Tag({label}: {label: string}): React.JSX.Element {
+  const {colors} = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.tag}>
       <AppText variant="caption">{label}</AppText>
@@ -293,89 +306,91 @@ function Tag({label}: {label: string}): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {flex: 1, backgroundColor: colors.background},
-  header: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-  },
-  content: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: 120,
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.background,
-    marginBottom: spacing.lg,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    color: colors.ink,
-    fontSize: 15,
-  },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionTitle: {
-    marginBottom: spacing.sm,
-  },
-  empty: {
-    paddingVertical: spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  rowPressed: {opacity: 0.6},
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  avatarFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowText: {
-    flex: 1,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  action: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  actionPrimary: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
-  },
-  actionMuted: {
-    backgroundColor: colors.background,
-  },
-  actionPressed: {opacity: 0.7},
-  actionTextPrimary: {color: colors.background},
-  tag: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-  },
-});
+function createStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: {flex: 1, backgroundColor: c.background},
+    header: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.sm,
+    },
+    content: {
+      paddingHorizontal: spacing.xl,
+      paddingBottom: 120,
+    },
+    searchBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      backgroundColor: c.surface,
+      marginBottom: spacing.lg,
+    },
+    searchInput: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      color: c.text,
+      fontSize: 15,
+    },
+    section: {
+      marginBottom: spacing.xl,
+    },
+    sectionTitle: {
+      marginBottom: spacing.sm,
+    },
+    empty: {
+      paddingVertical: spacing.sm,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    rowPressed: {opacity: 0.6},
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: c.surfaceElevated,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    avatarFallback: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rowText: {
+      flex: 1,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    action: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    actionPrimary: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    actionMuted: {
+      backgroundColor: c.surface,
+    },
+    actionPressed: {opacity: 0.7},
+    actionTextPrimary: {color: c.onPrimary},
+    tag: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.sm,
+      backgroundColor: c.surfaceElevated,
+    },
+  });
+}

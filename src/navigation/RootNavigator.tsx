@@ -1,4 +1,4 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useMemo, useRef} from 'react';
 import {ActivityIndicator, StyleSheet, View} from 'react-native';
 import {
   DefaultTheme,
@@ -7,7 +7,7 @@ import {
 } from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 
-import {colors} from '../lib/theme';
+import {useAppTheme} from '../lib/theme';
 import {handleInitialShare, subscribeToShares} from '../lib/share';
 import {useAuth} from '../hooks/useAuth';
 import {AuthScreen} from '../screens/AuthScreen';
@@ -23,21 +23,24 @@ import type {RootStackParamList} from '../types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-/** Parchment navigation theme so there is never a white flash between screens. */
-const navTheme: Theme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: colors.background,
-    card: colors.background,
-    text: colors.ink,
-    border: colors.border,
-    primary: colors.accent,
-  },
-};
-
 export function RootNavigator(): React.JSX.Element {
   const {status, recovering} = useAuth();
+  const {colors, isDark} = useAppTheme();
+  const navTheme = useMemo<Theme>(
+    () => ({
+      ...DefaultTheme,
+      dark: isDark,
+      colors: {
+        ...DefaultTheme.colors,
+        background: colors.background,
+        card: colors.background,
+        text: colors.text,
+        border: colors.border,
+        primary: colors.primary,
+      },
+    }),
+    [colors, isDark],
+  );
   // A share that arrives before the user is signed-in/onboarded is held here
   // and replayed the moment they reach the "ready" state.
   const pendingShare = useRef<string | null>(null);
@@ -118,12 +121,14 @@ export function RootNavigator(): React.JSX.Element {
 }
 
 function Splash(): React.JSX.Element {
+  const {colors} = useAppTheme();
+
   return (
-    <View style={styles.splash}>
+    <View style={[styles.splash, {backgroundColor: colors.background}]}>
       <AppText variant="serifLarge" style={styles.splashTitle}>
         Cache
       </AppText>
-      <ActivityIndicator color={colors.ink} />
+      <ActivityIndicator color={colors.primary} />
     </View>
   );
 }
@@ -133,7 +138,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
     gap: 16,
   },
   splashTitle: {

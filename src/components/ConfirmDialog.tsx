@@ -1,7 +1,13 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {Modal, Pressable, StyleSheet, View} from 'react-native';
 
-import {colors, elevation, radius, spacing} from '../lib/theme';
+import {
+  radius,
+  spacing,
+  useAppTheme,
+  type AppColors,
+  type AppTheme,
+} from '../lib/theme';
 import {AppText, PrimaryButton} from './Themed';
 
 interface ConfirmDialogProps {
@@ -16,7 +22,7 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
-/** A parchment-styled stand-in for `Alert.alert` so confirmations match the app instead of the OS. */
+/** A themed stand-in for `Alert.alert` so confirmations match the app. */
 export function ConfirmDialog({
   visible,
   title,
@@ -28,6 +34,12 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps): React.JSX.Element {
+  const {colors, elevation} = useAppTheme();
+  const styles = useMemo(
+    () => createStyles(colors, elevation),
+    [colors, elevation],
+  );
+
   return (
     <Modal
       visible={visible}
@@ -35,7 +47,9 @@ export function ConfirmDialog({
       animationType="fade"
       statusBarTranslucent
       onRequestClose={onCancel}>
-      <Pressable style={styles.backdrop} onPress={loading ? undefined : onCancel}>
+      <Pressable
+        style={styles.backdrop}
+        onPress={loading ? undefined : onCancel}>
         <Pressable style={styles.card} onPress={() => {}}>
           <AppText variant="serifTitle" style={styles.title}>
             {title}
@@ -65,38 +79,40 @@ export function ConfirmDialog({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(63, 53, 38, 0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.xl,
-    ...elevation.high,
-  },
-  title: {
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  message: {
-    color: colors.inkMuted,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  button: {
-    flex: 1,
-  },
-});
+function createStyles(c: AppColors, appElevation: AppTheme['elevation']) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: c.scrim,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.xl,
+    },
+    card: {
+      width: '100%',
+      maxWidth: 340,
+      backgroundColor: c.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: spacing.xl,
+      ...appElevation.high,
+    },
+    title: {
+      marginBottom: spacing.sm,
+      textAlign: 'center',
+    },
+    message: {
+      color: c.textMuted,
+      textAlign: 'center',
+      marginBottom: spacing.xl,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    button: {
+      flex: 1,
+    },
+  });
+}

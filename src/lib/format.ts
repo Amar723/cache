@@ -17,12 +17,22 @@ const MONTHS = [
   'Dec',
 ];
 
+/**
+ * Parse a datetime string as UTC when it carries no timezone designator.
+ * Zoneless strings (from Postgres `timestamp` columns) would otherwise be
+ * read as device-local time and drift by the device's UTC offset.
+ */
+function parseUtc(iso: string): Date {
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(iso);
+  return new Date(hasZone ? iso : `${iso}Z`);
+}
+
 /** "Jun 15, 2026" */
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) {
     return '';
   }
-  const d = new Date(iso);
+  const d = parseUtc(iso);
   if (Number.isNaN(d.getTime())) {
     return '';
   }
@@ -96,7 +106,7 @@ export function timeAgo(
   if (!iso) {
     return '';
   }
-  const t = new Date(iso).getTime();
+  const t = parseUtc(iso).getTime();
   if (Number.isNaN(t)) {
     return '';
   }

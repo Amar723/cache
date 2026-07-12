@@ -23,13 +23,19 @@ create table if not exists profiles (
   default_city text,
   default_city_lat float,
   default_city_lng float,
-  created_at timestamp default now()
+  created_at timestamptz default now()
 );
 
 -- Defensive: ensure the default-city columns exist on an older profiles table.
 alter table profiles add column if not exists default_city text;
 alter table profiles add column if not exists default_city_lat float;
 alter table profiles add column if not exists default_city_lng float;
+
+-- Migrate `created_at` from `timestamp` (no zone) to `timestamptz` so the API
+-- serializes a `Z`/offset and clients don't drift by the device's UTC offset.
+-- Existing zoneless values are on the session zone (UTC), so no USING clause is
+-- needed. Idempotent: a no-op once the column is already timestamptz.
+alter table profiles alter column created_at type timestamptz;
 
 create table if not exists stashes (
   id uuid primary key default gen_random_uuid(),
@@ -47,12 +53,19 @@ create table if not exists stashes (
   opening_hours jsonb,
   place_id text,
   visibility text default 'private',
-  visited_at timestamp default null,
-  created_at timestamp default now()
+  visited_at timestamptz default null,
+  created_at timestamptz default now()
 );
 
 -- Defensive: ensure the Phase 2 column exists on an older stashes table.
 alter table stashes add column if not exists visibility text default 'private';
+
+-- Migrate the timestamp columns from `timestamp` (no zone) to `timestamptz` so
+-- the API serializes a `Z`/offset and the "cached X ago" tag doesn't drift by
+-- the device's UTC offset. Existing zoneless values are on the session zone
+-- (UTC), so no USING clause is needed. Idempotent once already timestamptz.
+alter table stashes alter column created_at type timestamptz;
+alter table stashes alter column visited_at type timestamptz;
 
 -- Migrate the legacy `tiktok_url` column to the platform-agnostic `video_url`
 -- (it always held TikTok *or* Instagram links). Idempotent: only renames when

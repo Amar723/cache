@@ -16,6 +16,14 @@ describe('formatDate', () => {
   it('returns an empty string for an unparseable date', () => {
     expect(formatDate('not-a-date')).toBe('');
   });
+
+  it('parses a zoneless timestamp as UTC (same as its zoned form)', () => {
+    // A `timestamp`-column payload (no `Z`) must be read as UTC, matching the
+    // explicitly-zoned equivalent regardless of the device timezone.
+    expect(formatDate('2026-07-12T09:00:00')).toBe(
+      formatDate('2026-07-12T09:00:00Z'),
+    );
+  });
 });
 
 describe('formatDistance (metric)', () => {
@@ -71,6 +79,15 @@ describe('timeAgo', () => {
 
   it('clamps future timestamps to "just now"', () => {
     expect(timeAgo(ago(-10 * MIN), now)).toBe('just now');
+  });
+
+  it('treats a zoneless timestamp as UTC (matches the API payload)', () => {
+    // Postgres `timestamp` columns come back over the API without a `Z`.
+    // `now` here is a fixed UTC epoch for 2026-07-12T12:00:00Z.
+    const utcNoon = Date.UTC(2026, 6, 12, 12, 0, 0);
+    expect(timeAgo('2026-07-12T09:00:00', utcNoon)).toBe('3h ago');
+    // A properly zoned string must still parse the same way.
+    expect(timeAgo('2026-07-12T09:00:00Z', utcNoon)).toBe('3h ago');
   });
 
   it('returns an empty string for null/invalid input', () => {

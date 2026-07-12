@@ -77,7 +77,7 @@ export async function createStash(draft: StashDraft): Promise<Stash> {
     lng: draft.lng,
     category: draft.category,
     notes: draft.notes.length > 0 ? draft.notes : null,
-    tiktok_url: draft.tiktok_url,
+    video_url: draft.video_url,
     thumbnail_url: draft.thumbnail_url,
     opening_hours: draft.opening_hours,
     place_id: draft.place_id,
@@ -115,7 +115,7 @@ export async function updateStash(
     lng: draft.lng,
     category: draft.category,
     notes: draft.notes.length > 0 ? draft.notes : null,
-    tiktok_url: draft.tiktok_url,
+    video_url: draft.video_url,
     thumbnail_url: draft.thumbnail_url,
     opening_hours: draft.opening_hours,
     place_id: draft.place_id,
@@ -171,20 +171,25 @@ export async function deleteStash(stashId: string): Promise<void> {
  * Both TikTok's and Instagram's oEmbed thumbnails are signed CDN URLs that
  * expire after a while, so a pin saved in the past can end up with a dead
  * `thumbnail_url`. Called when an <Image> fails to load; re-fetches a fresh
- * URL from oEmbed (keyed off the permanent `tiktok_url`) and persists it so
+ * URL from oEmbed (keyed off the permanent `video_url`) and persists it so
  * future loads succeed.
  */
 export async function refreshThumbnail(stash: Stash): Promise<string | null> {
-  const fetchThumbnail = isTikTokUrl(stash.tiktok_url)
+  const videoUrl = stash.video_url;
+  if (!videoUrl) {
+    return null;
+  }
+
+  const fetchThumbnail = isTikTokUrl(videoUrl)
     ? fetchTikTokThumbnail
-    : isInstagramUrl(stash.tiktok_url)
+    : isInstagramUrl(videoUrl)
     ? fetchInstagramThumbnail
     : null;
   if (!fetchThumbnail) {
     return null;
   }
 
-  const {thumbnail_url} = await fetchThumbnail(stash.tiktok_url);
+  const {thumbnail_url} = await fetchThumbnail(videoUrl);
   if (!thumbnail_url) {
     return null;
   }

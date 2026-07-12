@@ -87,6 +87,8 @@ export function FriendsScreen(): React.JSX.Element {
     navigation.navigate('FriendMap', {
       friendId: profile.id,
       username: profile.username,
+      defaultCityLat: profile.default_city_lat,
+      defaultCityLng: profile.default_city_lng,
     });
 
   return (

@@ -45,7 +45,7 @@ export interface StashDraft {
   lng: number;
   category: Category;
   notes: string;
-  tiktok_url: string;
+  video_url: string | null;
   thumbnail_url: string | null;
   opening_hours: OpeningHours | null;
   place_id: string | null;
@@ -65,8 +65,14 @@ export type RootStackParamList = {
   // `sharedUrl` from a share; `stashId` opens the form in edit mode. Neither =
   // manual add.
   AddStash: {sharedUrl?: string; stashId?: string} | undefined;
-  // A friend's read-only map.
-  FriendMap: {friendId: string; username: string};
+  // A friend's read-only map. The friend's default-city coords (when set) let
+  // the map open centered on their city instead of a hardcoded fallback.
+  FriendMap: {
+    friendId: string;
+    username: string;
+    defaultCityLat?: number | null;
+    defaultCityLng?: number | null;
+  };
 };
 
 export type TabParamList = {

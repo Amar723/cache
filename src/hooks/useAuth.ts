@@ -249,6 +249,11 @@ export interface OnboardingInput {
   displayName: string;
   username: string;
   avatar?: AvatarUpload | null;
+  // Home city chosen in onboarding: display label + coordinates. Drives where a
+  // friend's map centers when someone opens this user's map.
+  defaultCity?: string | null;
+  defaultCityLat?: number | null;
+  defaultCityLng?: number | null;
 }
 
 /** Create the profile row that flips the user from onboarding → ready. */
@@ -273,6 +278,9 @@ export async function completeOnboarding(
     username,
     display_name: input.displayName.trim(),
     avatar_url: avatarUrl,
+    default_city: input.defaultCity ?? null,
+    default_city_lat: input.defaultCityLat ?? null,
+    default_city_lng: input.defaultCityLng ?? null,
   };
 
   const {data, error} = await supabase

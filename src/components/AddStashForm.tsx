@@ -87,7 +87,7 @@ export function AddStashForm({
   // manual add.
   const detailsFirst = manual || editing;
 
-  const [url, setUrl] = useState(editStash?.tiktok_url ?? sharedUrl);
+  const [url, setUrl] = useState(editStash?.video_url ?? sharedUrl);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
     editStash?.thumbnail_url ?? null,
   );
@@ -258,7 +258,9 @@ export function AddStashForm({
       lng: place.lng,
       category,
       notes: notes.trim(),
-      tiktok_url: url.trim(),
+      // Store null (not '') when saved without a link, so "no video" is a real
+      // absence rather than an empty string.
+      video_url: url.trim() || null,
       thumbnail_url: thumbnailUrl,
       opening_hours: place.openingHours,
       place_id: place.placeId,

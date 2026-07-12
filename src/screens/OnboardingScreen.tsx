@@ -11,7 +11,13 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {launchImageLibrary} from 'react-native-image-picker';
+import {
+  GooglePlacesAutocomplete,
+  type GooglePlaceData,
+  type GooglePlaceDetail,
+} from 'react-native-google-places-autocomplete';
 
+import {ENV} from '../lib/config';
 import {
   fonts,
   radius,
@@ -36,8 +42,29 @@ export function OnboardingScreen(): React.JSX.Element {
   const [username, setUsername] = useState('');
   const [avatar, setAvatar] = useState<AvatarUpload | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [city, setCity] = useState<{
+    name: string;
+    lat: number;
+    lng: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const handleCitySelected = (
+    data: GooglePlaceData,
+    details: GooglePlaceDetail | null,
+  ) => {
+    const location = details?.geometry?.location;
+    if (!location) {
+      return;
+    }
+    setCity({
+      name: details?.formatted_address ?? data.description,
+      lat: location.lat,
+      lng: location.lng,
+    });
+    setError(null);
+  };
 
   const pickAvatar = async () => {
     const result = await launchImageLibrary({
@@ -76,6 +103,10 @@ export function OnboardingScreen(): React.JSX.Element {
       setError('Username must be 3–20 chars: letters, numbers, underscores.');
       return;
     }
+    if (!city) {
+      setError('Please choose your city.');
+      return;
+    }
 
     setBusy(true);
     try {
@@ -83,6 +114,9 @@ export function OnboardingScreen(): React.JSX.Element {
         displayName,
         username: cleanUsername,
         avatar,
+        defaultCity: city.name,
+        defaultCityLat: city.lat,
+        defaultCityLng: city.lng,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not finish setup.');
@@ -151,6 +185,53 @@ export function OnboardingScreen(): React.JSX.Element {
               style={[styles.input, styles.usernameInput]}
             />
           </View>
+
+          <AppText variant="bold" style={[styles.label, styles.spaced]}>
+            City
+          </AppText>
+          <GooglePlacesAutocomplete
+            placeholder="Search for your city"
+            fetchDetails
+            onPress={handleCitySelected}
+            // Wait for a real query and pace requests, matching AddStashForm.
+            minLength={3}
+            debounce={300}
+            onFail={err =>
+              console.warn('[places] city autocomplete failed', err)
+            }
+            onTimeout={() =>
+              console.warn('[places] city autocomplete timed out')
+            }
+            // `types=(cities)` restricts predictions to cities. No Google key
+            // here: requests go to our Supabase Edge Function, which injects it.
+            query={{key: '', language: 'en', types: '(cities)'}}
+            requestUrl={{
+              useOnPlatform: 'all',
+              url: `${ENV.SUPABASE_URL}/functions/v1/places`,
+              headers: {
+                Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`,
+                apikey: ENV.SUPABASE_ANON_KEY,
+              },
+            }}
+            GooglePlacesDetailsQuery={{fields: 'geometry,formatted_address'}}
+            enablePoweredByContainer={false}
+            disableScroll
+            keyboardShouldPersistTaps="handled"
+            textInputProps={{placeholderTextColor: colors.textMuted}}
+            styles={{
+              textInput: styles.input,
+              listView: styles.placesList,
+              row: styles.placesRow,
+              description: styles.placesDescription,
+              separator: styles.placesSeparator,
+              container: styles.placesContainer,
+            }}
+          />
+          {city ? (
+            <AppText variant="caption" style={styles.selectedCity}>
+              {city.name}
+            </AppText>
+          ) : null}
 
           {error ? (
             <AppText variant="medium" style={styles.error}>
@@ -254,6 +335,34 @@ function createStyles(c: AppColors) {
     },
     signOutText: {
       color: c.textMuted,
+    },
+    // Google Places overrides (mirrors AddStashForm).
+    placesContainer: {
+      flex: 0,
+    },
+    placesList: {
+      borderRadius: radius.md,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      marginTop: spacing.xs,
+    },
+    placesRow: {
+      backgroundColor: c.surface,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+    },
+    placesDescription: {
+      color: c.text,
+      fontFamily: fonts.regular,
+    },
+    placesSeparator: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: c.border,
+    },
+    selectedCity: {
+      marginTop: spacing.sm,
+      color: c.success,
     },
   });
 }

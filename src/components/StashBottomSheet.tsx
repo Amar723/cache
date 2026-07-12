@@ -17,7 +17,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {radius, spacing, useAppTheme, type AppColors} from '../lib/theme';
 import {formatDate} from '../lib/format';
 import {lightImpact} from '../lib/haptics';
-import {openVideo} from '../lib/tiktok';
+import {isSupportedVideoUrl, openVideo} from '../lib/tiktok';
 import {useStash, useStashes, useThumbnailUri} from '../hooks/useStashes';
 import {useStashOverlap} from '../hooks/useOverlaps';
 import {friendLabel} from '../lib/overlap';
@@ -216,6 +216,10 @@ export function StashBottomSheet({
 
   const visited = activeStash?.visited_at != null;
   const freshVisited = freshVisitedId === activeStash?.id;
+  // Places saved without a link have a null `video_url`. Without a video
+  // there's nothing to open, so hide the whole thumbnail block — otherwise the
+  // "Watch" badge would show and tapping would open a blank Safari tab.
+  const hasVideo = isSupportedVideoUrl(activeStash?.video_url ?? '');
 
   return (
     <BottomSheet
@@ -232,34 +236,36 @@ export function StashBottomSheet({
         showsVerticalScrollIndicator={false}>
         {activeStash && (
           <>
-            <Pressable
-              accessibilityRole="imagebutton"
-              accessibilityLabel="Open original video"
-              onPress={() => openVideo(activeStash.tiktok_url)}
-              style={styles.thumbWrap}>
-              {thumbUri ? (
-                <Image
-                  source={{uri: thumbUri}}
-                  style={styles.thumb}
-                  resizeMode="cover"
-                  onError={handleThumbError}
-                />
-              ) : (
-                <View style={[styles.thumb, styles.thumbFallback]}>
-                  <Icon name="play" size={28} color={colors.textMuted} />
-                  <AppText
-                    variant="caption"
-                    numberOfLines={2}
-                    style={styles.thumbFallbackText}>
-                    {activeStash.tiktok_url}
-                  </AppText>
+            {hasVideo && (
+              <Pressable
+                accessibilityRole="imagebutton"
+                accessibilityLabel="Open original video"
+                onPress={() => openVideo(activeStash.video_url)}
+                style={styles.thumbWrap}>
+                {thumbUri ? (
+                  <Image
+                    source={{uri: thumbUri}}
+                    style={styles.thumb}
+                    resizeMode="cover"
+                    onError={handleThumbError}
+                  />
+                ) : (
+                  <View style={[styles.thumb, styles.thumbFallback]}>
+                    <Icon name="play" size={28} color={colors.textMuted} />
+                    <AppText
+                      variant="caption"
+                      numberOfLines={2}
+                      style={styles.thumbFallbackText}>
+                      {activeStash.video_url}
+                    </AppText>
+                  </View>
+                )}
+                <View style={styles.playHint}>
+                  <Icon name="play" size={13} color={colors.onPrimary} />
+                  <AppText style={styles.playHintText}>Watch</AppText>
                 </View>
-              )}
-              <View style={styles.playHint}>
-                <Icon name="play" size={13} color={colors.onPrimary} />
-                <AppText style={styles.playHintText}>Watch</AppText>
-              </View>
-            </Pressable>
+              </Pressable>
+            )}
 
             <View style={styles.headerRow}>
               <AppText variant="serifTitle" style={styles.title}>

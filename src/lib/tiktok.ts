@@ -152,9 +152,13 @@ export function isSupportedVideoUrl(url: string): boolean {
  * iOS/Android both resolve the universal https link; if the TikTok/Instagram
  * app is installed it intercepts the link, otherwise the OS opens it in a
  * browser. `Linking.openURL` already implements exactly that fallback, so we
- * simply guard against malformed URLs.
+ * simply guard against malformed URLs. A null/empty URL (a place saved without
+ * a link) is a no-op — there's nothing to open.
  */
-export async function openVideo(url: string): Promise<void> {
+export async function openVideo(url: string | null | undefined): Promise<void> {
+  if (!url || url.trim().length === 0) {
+    return;
+  }
   try {
     await Linking.openURL(url);
   } catch {

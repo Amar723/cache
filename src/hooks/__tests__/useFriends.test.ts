@@ -14,6 +14,9 @@ function prof(id: string): Profile {
     username: `user_${id}`,
     display_name: `User ${id}`,
     avatar_url: null,
+    default_city: null,
+    default_city_lat: null,
+    default_city_lng: null,
     created_at: '2026-01-01',
   };
 }

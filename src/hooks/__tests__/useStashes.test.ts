@@ -16,7 +16,7 @@ function draft(overrides: Partial<StashDraft> = {}): StashDraft {
     lng: 2,
     category: 'Food',
     notes: '',
-    tiktok_url: 'https://vm.tiktok.com/x/',
+    video_url: 'https://vm.tiktok.com/x/',
     thumbnail_url: null,
     opening_hours: null,
     place_id: 'p1',

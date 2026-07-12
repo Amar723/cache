@@ -22,6 +22,8 @@ import {AppText} from '../components/Themed';
 import {Icon} from '../components/Icon';
 import type {RootStackParamList, Stash} from '../types';
 
+// Last-resort neutral region, only reached if the friend has neither a default
+// city nor any shared pins. After the default-city backfill this is rarely hit.
 const DEFAULT_REGION: Region = {
   latitude: 37.7749,
   longitude: -122.4194,
@@ -42,12 +44,22 @@ export function FriendMapScreen({route, navigation}: Props): React.JSX.Element {
     () => createStyles(colors, elevation),
     [colors, elevation],
   );
-  const {friendId, username} = route.params;
+  const {friendId, username, defaultCityLat, defaultCityLng} = route.params;
   const {stashes, loading} = useFriendStashes(friendId);
   const [selected, setSelected] = useState<Stash | null>(null);
 
+  // Prefer the friend's home city (known synchronously from nav params) so the
+  // map opens on their city even before pins load or when they've shared none.
+  // Fall back to their first pin, then a neutral region.
   const initialRegion: Region =
-    stashes.length > 0
+    defaultCityLat != null && defaultCityLng != null
+      ? {
+          latitude: defaultCityLat,
+          longitude: defaultCityLng,
+          latitudeDelta: 0.12,
+          longitudeDelta: 0.12,
+        }
+      : stashes.length > 0
       ? {
           latitude: stashes[0].lat,
           longitude: stashes[0].lng,
@@ -59,8 +71,15 @@ export function FriendMapScreen({route, navigation}: Props): React.JSX.Element {
   return (
     <View style={styles.container}>
       <MapView
-        // Remount once the first pin's region is known so the map lands on it.
-        key={stashes.length > 0 ? stashes[0].id : 'empty'}
+        // With a known city the region is set on first mount; otherwise remount
+        // once the first pin loads so the map lands on it.
+        key={
+          defaultCityLat != null && defaultCityLng != null
+            ? 'city'
+            : stashes.length > 0
+            ? stashes[0].id
+            : 'empty'
+        }
         provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFill}
         customMapStyle={mapStyle as unknown as MapStyleElement[]}

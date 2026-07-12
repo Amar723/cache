@@ -25,6 +25,11 @@ export interface ProfileRow {
   username: string;
   display_name: string | null;
   avatar_url: string | null;
+  // The user's home city, chosen at onboarding: a display label plus its
+  // coordinates. Lets a friend's map center on their city with no geocoding.
+  default_city: string | null;
+  default_city_lat: number | null;
+  default_city_lng: number | null;
   created_at: string;
 }
 
@@ -72,7 +77,9 @@ export interface StashRow {
   lng: number;
   category: Category | null;
   notes: string | null;
-  tiktok_url: string;
+  // The source video link (TikTok or Instagram). Null when the place was saved
+  // without a link.
+  video_url: string | null;
   thumbnail_url: string | null;
   opening_hours: OpeningHours | null;
   place_id: string | null;
@@ -91,8 +98,14 @@ export type StashInsert = Omit<
   visibility?: Visibility;
 };
 
-export type ProfileInsert = Omit<ProfileRow, 'created_at'> & {
+export type ProfileInsert = Omit<
+  ProfileRow,
+  'created_at' | 'default_city' | 'default_city_lat' | 'default_city_lng'
+> & {
   created_at?: string;
+  default_city?: string | null;
+  default_city_lat?: number | null;
+  default_city_lng?: number | null;
 };
 
 export type PushPlatform = 'ios' | 'android';

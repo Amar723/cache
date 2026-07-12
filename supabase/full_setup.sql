@@ -18,8 +18,18 @@ create table if not exists profiles (
   username text unique not null,
   display_name text,
   avatar_url text,
+  -- The user's home city, chosen at onboarding. Label + coordinates so a
+  -- friend's map can center on their city without any runtime geocoding.
+  default_city text,
+  default_city_lat float,
+  default_city_lng float,
   created_at timestamp default now()
 );
+
+-- Defensive: ensure the default-city columns exist on an older profiles table.
+alter table profiles add column if not exists default_city text;
+alter table profiles add column if not exists default_city_lat float;
+alter table profiles add column if not exists default_city_lng float;
 
 create table if not exists stashes (
   id uuid primary key default gen_random_uuid(),
@@ -30,7 +40,9 @@ create table if not exists stashes (
   lng float not null,
   category text,
   notes text,
-  tiktok_url text not null,
+  -- Source video link (TikTok or Instagram). Nullable: a place can be saved
+  -- without a link.
+  video_url text,
   thumbnail_url text,
   opening_hours jsonb,
   place_id text,
@@ -41,6 +53,24 @@ create table if not exists stashes (
 
 -- Defensive: ensure the Phase 2 column exists on an older stashes table.
 alter table stashes add column if not exists visibility text default 'private';
+
+-- Migrate the legacy `tiktok_url` column to the platform-agnostic `video_url`
+-- (it always held TikTok *or* Instagram links). Idempotent: only renames when
+-- the old column is still present, so re-running on a migrated or fresh table
+-- is a no-op.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'stashes' and column_name = 'tiktok_url'
+  ) then
+    alter table stashes rename column tiktok_url to video_url;
+  end if;
+end $$;
+
+-- Allow places saved without a link to have no video. `drop not null` is
+-- idempotent, so this is safe on a fresh table (already nullable) too.
+alter table stashes alter column video_url drop not null;
 
 create table if not exists friendships (
   id uuid primary key default gen_random_uuid(),

@@ -6,6 +6,11 @@ create table profiles (
   username text unique not null,
   display_name text,
   avatar_url text,
+  -- The user's home city, chosen at onboarding. Label + coordinates so a
+  -- friend's map can center on their city without any runtime geocoding.
+  default_city text,
+  default_city_lat float,
+  default_city_lng float,
   created_at timestamp default now()
 );
 
@@ -18,7 +23,9 @@ create table stashes (
   lng float not null,
   category text,
   notes text,
-  tiktok_url text not null,
+  -- Source video link (TikTok or Instagram). Nullable: a place can be saved
+  -- without a link.
+  video_url text,
   thumbnail_url text,
   -- Regular weekly opening hours captured from Google Places at save time, used
   -- by the native geofence to only notify when a place is open. Shape:

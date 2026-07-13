@@ -52,6 +52,10 @@ yarn-error.log
 .env.bak
 *.bak
 
+# Firebase config (contains client API keys; injected at build time)
+ios/GoogleService-Info.plist
+android/app/google-services.json
+
 # Local Claude Code / harness state
 .claude/
 

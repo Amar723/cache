@@ -17,6 +17,7 @@ import {
 } from '../lib/theme';
 import {useStashes, getStashById, refreshStashes} from '../hooks/useStashes';
 import {useLocation} from '../hooks/useLocation';
+import {useAuth} from '../hooks/useAuth';
 import {reconcileFriendOverlaps, useOverlapMap} from '../hooks/useOverlaps';
 import {
   consumePendingStash,
@@ -29,11 +30,13 @@ import {AppText} from '../components/Themed';
 import {Icon} from '../components/Icon';
 import type {Stash} from '../types';
 
-// Last-resort region, only used if we get neither a location nor any pins
-// within a few seconds (e.g. permission denied on a fresh install).
+// Truly-last-resort region, only reached when the user has no location, no
+// saved pins, and no home city on their profile (e.g. permission denied on a
+// brand-new account). See `fallbackRegion` for the ordered preference list.
+// Melbourne CBD — the home of Cache.
 const NEUTRAL_FALLBACK: Region = {
-  latitude: 37.7749,
-  longitude: -122.4194,
+  latitude: -37.8136,
+  longitude: 144.9631,
   latitudeDelta: 0.08,
   longitudeDelta: 0.08,
 };
@@ -58,8 +61,19 @@ export function MapScreen(): React.JSX.Element {
     [colors, elevation],
   );
   const {stashes} = useStashes();
-  const {location} = useLocation();
+  const {location, permission} = useLocation();
+  const {profile} = useAuth();
   const {setVisible: setTabBarVisible} = useTabBarVisibility();
+
+  // The home city the user picked at onboarding, used to center the map when we
+  // have no location fix. Null only if the profile predates that field.
+  const homeCity = useMemo(
+    () =>
+      profile?.default_city_lat != null && profile?.default_city_lng != null
+        ? {lat: profile.default_city_lat, lng: profile.default_city_lng}
+        : null,
+    [profile?.default_city_lat, profile?.default_city_lng],
+  );
   const overlaps = useOverlapMap();
   const mapRef = useRef<MapView>(null);
   const didInitialCenter = useRef(false);
@@ -86,23 +100,37 @@ export function MapScreen(): React.JSX.Element {
     setInitialRegion(region);
   }, []);
 
+  // Where to center the map when the user's own location is unavailable (denied
+  // permission, or a fix that never arrives). The candidates are ordered by
+  // preference — reorder these two lines to change the fallback behavior.
+  const fallbackRegion = useCallback((): Region => {
+    const candidates = [
+      stashes[0], // 1. their most recent saved pin
+      homeCity, // 2. the home city they set at onboarding
+    ];
+    const hit = candidates.find(c => c != null);
+    return hit ? regionFor(hit) : NEUTRAL_FALLBACK; // 3. neutral last resort
+  }, [stashes, homeCity]);
+
   // Prefer the user's location (the `location` from useLocation is seeded from
   // the cached last-known fix, so this resolves almost immediately on return
-  // visits); fall back to the first pin if we have stashes but no location yet.
+  // visits). Otherwise open at the fallback region as soon as we have something
+  // to show or we know location was denied — no need to wait on the backstop.
   useEffect(() => {
     if (location) {
       decideRegion(regionFor(location));
-    } else if (stashes.length > 0) {
-      decideRegion(regionFor(stashes[0]));
+    } else if (stashes.length > 0 || permission === 'denied') {
+      decideRegion(fallbackRegion());
     }
-  }, [location, stashes, decideRegion]);
+  }, [location, stashes, permission, decideRegion, fallbackRegion]);
 
   // Don't sit on the "Finding your location…" state forever if location is
-  // unavailable (denied / no cache / no pins).
+  // slow or unavailable (e.g. iOS never reports 'denied', so a refused user
+  // reaches the fallback only here).
   useEffect(() => {
-    const timer = setTimeout(() => decideRegion(NEUTRAL_FALLBACK), 5000);
+    const timer = setTimeout(() => decideRegion(fallbackRegion()), 5000);
     return () => clearTimeout(timer);
-  }, [decideRegion]);
+  }, [decideRegion, fallbackRegion]);
 
   // Keep data fresh whenever the map regains focus, then re-check friend
   // overlaps (this is what notifies you right after you save a new place).
@@ -179,18 +207,19 @@ export function MapScreen(): React.JSX.Element {
   }, [location, pendingId, selected]);
 
   const recenter = useCallback(() => {
-    if (location) {
-      mapRef.current?.animateToRegion(
-        {
+    // Center on the live location when we have one; otherwise re-frame on the
+    // same fallback the map opened at (pin / home city) so the button still does
+    // something useful for users who haven't shared their location.
+    const target = location
+      ? {
           latitude: location.lat,
           longitude: location.lng,
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
-        },
-        500,
-      );
-    }
-  }, [location]);
+        }
+      : fallbackRegion();
+    mapRef.current?.animateToRegion(target, 500);
+  }, [location, fallbackRegion]);
 
   const handleVisited = useCallback((stashId: string) => {
     pendingVisitedPulse.current = stashId;

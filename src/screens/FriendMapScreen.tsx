@@ -25,9 +25,10 @@ import type {RootStackParamList, Stash} from '../types';
 
 // Last-resort neutral region, only reached if the friend has neither a default
 // city nor any shared pins. After the default-city backfill this is rarely hit.
+// Melbourne CBD — the home of Cache.
 const DEFAULT_REGION: Region = {
-  latitude: 37.7749,
-  longitude: -122.4194,
+  latitude: -37.8136,
+  longitude: 144.9631,
   latitudeDelta: 0.08,
   longitudeDelta: 0.08,
 };

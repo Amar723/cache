@@ -17,6 +17,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {radius, spacing, useAppTheme, type AppColors} from '../lib/theme';
 import {formatDate} from '../lib/format';
 import {lightImpact} from '../lib/haptics';
+import {openDirections} from '../lib/directions';
 import {isSupportedVideoUrl, openVideo} from '../lib/tiktok';
 import {useStash, useStashes, useThumbnailUri} from '../hooks/useStashes';
 import {useStashOverlap} from '../hooks/useOverlaps';
@@ -162,6 +163,19 @@ export function StashBottomSheet({
       setSaving(false);
     }
   }, [activeStash, markVisited, onVisited, visitScale]);
+
+  const handleDirections = useCallback(() => {
+    if (!activeStash) {
+      return;
+    }
+    lightImpact();
+    // Destination only — no origin — so this works even with no location shared.
+    openDirections({
+      lat: activeStash.lat,
+      lng: activeStash.lng,
+      name: activeStash.place_name,
+    });
+  }, [activeStash]);
 
   const handleEdit = useCallback(() => {
     if (!stash) {
@@ -345,6 +359,13 @@ export function StashBottomSheet({
                 </AppText>
               </View>
             )}
+
+            <PrimaryButton
+              title="Directions"
+              variant="secondary"
+              onPress={handleDirections}
+              style={styles.directionsButton}
+            />
 
             {!readOnly && (
               <View style={styles.actions}>
@@ -592,6 +613,9 @@ function createStyles(c: AppColors) {
     },
     alsoSavedText: {
       flexShrink: 1,
+    },
+    directionsButton: {
+      marginTop: spacing.xl,
     },
     actions: {
       marginTop: spacing.xl,

@@ -118,7 +118,10 @@ export function SavedScreen(): React.JSX.Element {
             onPress={() => setTab('visited')}
           />
         </View>
-        <SortToggle sort={sort} onChange={setSort} />
+        {/* "Closest" is meaningless without a location fix, and the list already
+            falls back to newest-first, so hide the toggle entirely until we
+            have somewhere to measure from. */}
+        {location ? <SortToggle sort={sort} onChange={setSort} /> : null}
       </View>
 
       <FlatList

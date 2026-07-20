@@ -73,6 +73,12 @@ export type RootStackParamList = {
     defaultCityLat?: number | null;
     defaultCityLng?: number | null;
   };
+  // The friend's profile lives in the useFriends store; the id is enough.
+  FriendProfile: {friendId: string};
+  EditProfile: undefined;
+  Settings: undefined;
+  Account: undefined;
+  DeleteAccount: undefined;
 };
 
 export type TabParamList = {

@@ -12,9 +12,14 @@ import {handleInitialShare, subscribeToShares} from '../lib/share';
 import {useAuth} from '../hooks/useAuth';
 import {AuthScreen} from '../screens/AuthScreen';
 import {OnboardingScreen} from '../screens/OnboardingScreen';
+import {AccountScreen} from '../screens/AccountScreen';
 import {AddStashScreen} from '../screens/AddStashScreen';
 import {ChangePasswordScreen} from '../screens/ChangePasswordScreen';
+import {DeleteAccountScreen} from '../screens/DeleteAccountScreen';
+import {EditProfileScreen} from '../screens/EditProfileScreen';
 import {FriendMapScreen} from '../screens/FriendMapScreen';
+import {FriendProfileScreen} from '../screens/FriendProfileScreen';
+import {SettingsScreen} from '../screens/SettingsScreen';
 import {UpdatePasswordScreen} from '../screens/UpdatePasswordScreen';
 import {TabNavigator} from './TabNavigator';
 import {navigationRef} from './navigationRef';
@@ -107,6 +112,31 @@ export function RootNavigator(): React.JSX.Element {
           <Stack.Screen
             name="FriendMap"
             component={FriendMapScreen}
+            options={{animation: 'slide_from_right'}}
+          />
+          <Stack.Screen
+            name="FriendProfile"
+            component={FriendProfileScreen}
+            options={{animation: 'slide_from_right'}}
+          />
+          <Stack.Screen
+            name="EditProfile"
+            component={EditProfileScreen}
+            options={{animation: 'slide_from_right'}}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={{animation: 'slide_from_right'}}
+          />
+          <Stack.Screen
+            name="Account"
+            component={AccountScreen}
+            options={{animation: 'slide_from_right'}}
+          />
+          <Stack.Screen
+            name="DeleteAccount"
+            component={DeleteAccountScreen}
             options={{animation: 'slide_from_right'}}
           />
           <Stack.Screen

@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {radius, spacing, useAppTheme, type AppColors} from '../lib/theme';
 import {useFriends} from '../hooks/useFriends';
 import {AppText} from '../components/Themed';
+import {Avatar} from '../components/Avatar';
 import {Icon} from '../components/Icon';
 import type {Profile, RootStackParamList} from '../types';
 
@@ -83,13 +83,8 @@ export function FriendsScreen(): React.JSX.Element {
     return null;
   };
 
-  const openFriendMap = (profile: Profile) =>
-    navigation.navigate('FriendMap', {
-      friendId: profile.id,
-      username: profile.username,
-      defaultCityLat: profile.default_city_lat,
-      defaultCityLng: profile.default_city_lng,
-    });
+  const openFriendProfile = (profile: Profile) =>
+    navigation.navigate('FriendProfile', {friendId: profile.id});
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -175,7 +170,7 @@ export function FriendsScreen(): React.JSX.Element {
               <PersonRow
                 key={friend.friendshipId}
                 profile={friend.profile}
-                onPress={() => openFriendMap(friend.profile)}>
+                onPress={() => openFriendProfile(friend.profile)}>
                 <Action
                   label="Remove"
                   variant="muted"
@@ -236,9 +231,6 @@ function PersonRow({
 }): React.JSX.Element {
   const {colors} = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const initial = (profile.display_name ?? profile.username)
-    .charAt(0)
-    .toUpperCase();
   return (
     <Pressable
       onPress={onPress}
@@ -247,13 +239,11 @@ function PersonRow({
         styles.row,
         pressed && onPress ? styles.rowPressed : null,
       ]}>
-      {profile.avatar_url ? (
-        <Image source={{uri: profile.avatar_url}} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatar, styles.avatarFallback]}>
-          <AppText variant="bold">{initial}</AppText>
-        </View>
-      )}
+      <Avatar
+        uri={profile.avatar_url}
+        name={profile.display_name ?? profile.username}
+        size={44}
+      />
       <View style={styles.rowText}>
         <AppText variant="medium" numberOfLines={1}>
           {profile.display_name ?? profile.username}
@@ -353,18 +343,6 @@ function createStyles(c: AppColors) {
       paddingVertical: spacing.sm,
     },
     rowPressed: {opacity: 0.6},
-    avatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: c.surfaceElevated,
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    avatarFallback: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     rowText: {
       flex: 1,
     },

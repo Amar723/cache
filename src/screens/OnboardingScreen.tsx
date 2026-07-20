@@ -1,6 +1,5 @@
 import React, {useMemo, useState} from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,14 +9,7 @@ import {
   View,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {launchImageLibrary} from 'react-native-image-picker';
-import {
-  GooglePlacesAutocomplete,
-  type GooglePlaceData,
-  type GooglePlaceDetail,
-} from 'react-native-google-places-autocomplete';
 
-import {ENV} from '../lib/config';
 import {
   fonts,
   radius,
@@ -26,8 +18,11 @@ import {
   type AppColors,
 } from '../lib/theme';
 import {useAuth} from '../hooks/useAuth';
+import {pickAvatar} from '../lib/pickAvatar';
 import type {AvatarUpload} from '../lib/storage';
 import {AppText, PrimaryButton} from '../components/Themed';
+import {Avatar} from '../components/Avatar';
+import {CityPicker, type City} from '../components/CityPicker';
 import {Icon} from '../components/Icon';
 
 /**
@@ -42,53 +37,27 @@ export function OnboardingScreen(): React.JSX.Element {
   const [username, setUsername] = useState('');
   const [avatar, setAvatar] = useState<AvatarUpload | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [city, setCity] = useState<{
-    name: string;
-    lat: number;
-    lng: number;
-  } | null>(null);
+  const [city, setCity] = useState<City | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const handleCitySelected = (
-    data: GooglePlaceData,
-    details: GooglePlaceDetail | null,
-  ) => {
-    const location = details?.geometry?.location;
-    if (!location) {
-      return;
-    }
-    setCity({
-      name: details?.formatted_address ?? data.description,
-      lat: location.lat,
-      lng: location.lng,
-    });
+  const handleCitySelected = (selected: City) => {
+    setCity(selected);
     setError(null);
   };
 
-  const pickAvatar = async () => {
-    const result = await launchImageLibrary({
-      mediaType: 'photo',
-      includeBase64: true,
-      maxWidth: 800,
-      maxHeight: 800,
-      quality: 0.8,
-    });
-    if (result.didCancel || !result.assets || result.assets.length === 0) {
-      return;
+  const choosePhoto = async () => {
+    try {
+      const picked = await pickAvatar();
+      if (!picked) {
+        return;
+      }
+      setAvatar(picked.upload);
+      setAvatarPreview(picked.previewUri);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not read that image.');
     }
-    const asset = result.assets[0];
-    if (!asset.base64) {
-      setError('Could not read that image. Try another.');
-      return;
-    }
-    setAvatar({
-      base64: asset.base64,
-      mimeType: asset.type ?? 'image/jpeg',
-      fileName: asset.fileName ?? null,
-    });
-    setAvatarPreview(asset.uri ?? null);
-    setError(null);
   };
 
   const submit = async () => {
@@ -141,20 +110,22 @@ export function OnboardingScreen(): React.JSX.Element {
           </AppText>
 
           <Pressable
-            onPress={pickAvatar}
+            onPress={choosePhoto}
             style={styles.avatarWrap}
             accessibilityRole="button"
             accessibilityLabel="Choose profile photo">
-            {avatarPreview ? (
-              <Image source={{uri: avatarPreview}} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Icon name="camera" size={26} color={colors.textMuted} />
-                <AppText variant="caption" style={styles.avatarHint}>
-                  Add photo
-                </AppText>
-              </View>
-            )}
+            <Avatar
+              uri={avatarPreview}
+              size={112}
+              placeholder={
+                <View style={styles.avatarPlaceholder}>
+                  <Icon name="camera" size={26} color={colors.textMuted} />
+                  <AppText variant="caption" style={styles.avatarHint}>
+                    Add photo
+                  </AppText>
+                </View>
+              }
+            />
           </Pressable>
 
           <AppText variant="bold" style={styles.label}>
@@ -189,49 +160,7 @@ export function OnboardingScreen(): React.JSX.Element {
           <AppText variant="bold" style={[styles.label, styles.spaced]}>
             City
           </AppText>
-          <GooglePlacesAutocomplete
-            placeholder="Search for your city"
-            fetchDetails
-            onPress={handleCitySelected}
-            // Wait for a real query and pace requests, matching AddStashForm.
-            minLength={3}
-            debounce={300}
-            onFail={err =>
-              console.warn('[places] city autocomplete failed', err)
-            }
-            onTimeout={() =>
-              console.warn('[places] city autocomplete timed out')
-            }
-            // `types=(cities)` restricts predictions to cities. No Google key
-            // here: requests go to our Supabase Edge Function, which injects it.
-            query={{key: '', language: 'en', types: '(cities)'}}
-            requestUrl={{
-              useOnPlatform: 'all',
-              url: `${ENV.SUPABASE_URL}/functions/v1/places`,
-              headers: {
-                Authorization: `Bearer ${ENV.SUPABASE_ANON_KEY}`,
-                apikey: ENV.SUPABASE_ANON_KEY,
-              },
-            }}
-            GooglePlacesDetailsQuery={{fields: 'geometry,formatted_address'}}
-            enablePoweredByContainer={false}
-            disableScroll
-            keyboardShouldPersistTaps="handled"
-            textInputProps={{placeholderTextColor: colors.textMuted}}
-            styles={{
-              textInput: styles.input,
-              listView: styles.placesList,
-              row: styles.placesRow,
-              description: styles.placesDescription,
-              separator: styles.placesSeparator,
-              container: styles.placesContainer,
-            }}
-          />
-          {city ? (
-            <AppText variant="caption" style={styles.selectedCity}>
-              {city.name}
-            </AppText>
-          ) : null}
+          <CityPicker value={city} onSelect={handleCitySelected} />
 
           {error ? (
             <AppText variant="medium" style={styles.error}>
@@ -277,17 +206,8 @@ function createStyles(c: AppColors) {
       alignSelf: 'center',
       marginBottom: spacing.xl,
     },
-    avatar: {
-      width: 112,
-      height: 112,
-      borderRadius: 56,
-      borderWidth: 2,
-      borderColor: c.border,
-    },
     avatarPlaceholder: {
-      backgroundColor: c.surface,
       alignItems: 'center',
-      justifyContent: 'center',
       gap: 2,
     },
     avatarHint: {
@@ -335,34 +255,6 @@ function createStyles(c: AppColors) {
     },
     signOutText: {
       color: c.textMuted,
-    },
-    // Google Places overrides (mirrors AddStashForm).
-    placesContainer: {
-      flex: 0,
-    },
-    placesList: {
-      borderRadius: radius.md,
-      borderWidth: 1.5,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      marginTop: spacing.xs,
-    },
-    placesRow: {
-      backgroundColor: c.surface,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.md,
-    },
-    placesDescription: {
-      color: c.text,
-      fontFamily: fonts.regular,
-    },
-    placesSeparator: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: c.border,
-    },
-    selectedCity: {
-      marginTop: spacing.sm,
-      color: c.success,
     },
   });
 }

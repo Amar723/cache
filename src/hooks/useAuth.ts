@@ -236,11 +236,39 @@ export async function changePassword(
   }
 }
 
-/** Permanently delete the account and all its data, then sign out. */
-export async function deleteAccount(): Promise<void> {
-  const {error} = await supabase.rpc('delete_account');
+/**
+ * Permanently delete the account and all its data, then sign out. Requires the
+ * user's current password, verified against Supabase, so a live app session
+ * alone is never enough to destroy the account.
+ */
+export async function deleteAccount(password: string): Promise<void> {
+  if (!password) {
+    throw new Error('Enter your password.');
+  }
+
+  const session = await getCurrentSession();
+  const email = session?.user.email?.trim();
+  if (!session || !email) {
+    throw new Error('Your session expired. Please log in again.');
+  }
+
+  const {data, error} = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
   if (error) {
-    throw new Error(error.message);
+    throw new Error('Password is incorrect.');
+  }
+  if (data.user?.id !== session.user.id) {
+    // signInWithPassword swapped the active session; put the original back so
+    // the RPC can never run as a different account.
+    await restoreSession(session);
+    throw new Error('Could not verify this account. Please log in again.');
+  }
+
+  const {error: rpcError} = await supabase.rpc('delete_account');
+  if (rpcError) {
+    throw new Error(rpcError.message);
   }
   await supabase.auth.signOut();
 }
@@ -300,6 +328,57 @@ export async function completeOnboarding(
   store.setState({profile: data as Profile, status: 'ready'});
 }
 
+export interface ProfileUpdate {
+  displayName: string;
+  username: string;
+  /** null/undefined = keep the current avatar; a value = replace it. */
+  avatar?: AvatarUpload | null;
+  defaultCity?: string | null;
+  defaultCityLat?: number | null;
+  defaultCityLng?: number | null;
+}
+
+/** Update the signed-in user's profile row (and avatar, when a new one was picked). */
+export async function updateProfile(input: ProfileUpdate): Promise<void> {
+  const session = await getCurrentSession();
+  if (!session) {
+    throw new Error('Your session expired. Please log in again.');
+  }
+  const userId = session.user.id;
+
+  const payload: Partial<ProfileInsert> = {
+    username: input.username.trim().toLowerCase(),
+    display_name: input.displayName.trim(),
+    default_city: input.defaultCity ?? null,
+    default_city_lat: input.defaultCityLat ?? null,
+    default_city_lng: input.defaultCityLng ?? null,
+  };
+  // Only touch avatar_url when a new image was picked so the old one survives.
+  // uploadAvatar overwrites `<userId>/avatar.<ext>` and returns a cache-busted
+  // URL, so replacement and stale caches are already handled.
+  if (input.avatar) {
+    payload.avatar_url = await uploadAvatar(userId, input.avatar);
+  }
+
+  const {data, error} = await supabase
+    .from('profiles')
+    .update(payload)
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    // 23505 = unique_violation on the username column.
+    if (error.code === '23505') {
+      throw new Error('That username is already taken. Try another.');
+    }
+    throw new Error(error.message);
+  }
+
+  // The user is already `ready`; only the profile itself changed.
+  store.setState({profile: data as Profile});
+}
+
 /** Re-read the current profile (after editing avatar/name, etc.). */
 export async function refreshProfile(): Promise<void> {
   const session = store.getState().session;
@@ -331,6 +410,7 @@ export function useAuth() {
     signUp,
     signOut,
     completeOnboarding,
+    updateProfile,
     refreshProfile,
     requestPasswordReset,
     confirmPasswordResetCode,

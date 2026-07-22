@@ -1,12 +1,6 @@
 import React from 'react';
-import {
-  Image,
-  StyleSheet,
-  View,
-  type ImageStyle,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import {StyleSheet, View, type ViewStyle} from 'react-native';
+import FastImage from '@d11/react-native-fast-image';
 
 import {useAppTheme} from '../lib/theme';
 import {AppText} from './Themed';
@@ -43,9 +37,15 @@ export function Avatar({
   };
 
   if (uri) {
-    // The circle shape (all View props) is equally valid on an Image.
+    // The circle shape (all View props) is equally valid on an image.
     return (
-      <Image source={{uri}} style={[shape, style] as StyleProp<ImageStyle>} />
+      <FastImage
+        source={{uri, cache: FastImage.cacheControl.immutable}}
+        style={
+          [shape, style] as React.ComponentProps<typeof FastImage>['style']
+        }
+        resizeMode={FastImage.resizeMode.cover}
+      />
     );
   }
 

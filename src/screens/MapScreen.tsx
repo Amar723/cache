@@ -5,6 +5,7 @@ import MapView, {
   PROVIDER_GOOGLE,
   type Region,
 } from 'react-native-maps';
+import ClusteredMapView from 'react-native-map-clustering';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 
@@ -23,7 +24,7 @@ import {
   consumePendingStash,
   subscribeOpenStash,
 } from '../navigation/navigationRef';
-import {useTabBarVisibility} from '../navigation/tabBarVisibility';
+import {useSetTabBarVisible} from '../navigation/tabBarVisibility';
 import {StashPin} from '../components/StashPin';
 import {StashBottomSheet} from '../components/StashBottomSheet';
 import {AppText} from '../components/Themed';
@@ -50,6 +51,24 @@ function regionFor(point: {lat: number; lng: number}, delta = 0.05): Region {
   };
 }
 
+// The clustering wrapper forwards its ref to the underlying react-native-maps
+// MapView and accepts every MapView prop plus a few clustering options, but its
+// bundled types model it as a bare class. Re-type it here so the call site gets
+// a correctly-typed ref (for `animateToRegion`) and prop-checking.
+type ClusterOptions = {
+  clusteringEnabled?: boolean;
+  radius?: number;
+  minPoints?: number;
+  clusterColor?: string;
+  clusterTextColor?: string;
+};
+const ClusteredMap =
+  ClusteredMapView as unknown as React.ForwardRefExoticComponent<
+    Omit<React.ComponentProps<typeof MapView>, 'ref'> &
+      ClusterOptions &
+      React.RefAttributes<MapView>
+  >;
+
 /**
  * Full-screen map. Renders every stash as a custom pin and hosts the
  * shared detail sheet. Also the landing point for notification deep links.
@@ -63,7 +82,7 @@ export function MapScreen(): React.JSX.Element {
   const {stashes} = useStashes();
   const {location, permission} = useLocation();
   const {profile} = useAuth();
-  const {setVisible: setTabBarVisible} = useTabBarVisibility();
+  const setTabBarVisible = useSetTabBarVisible();
 
   // The home city the user picked at onboarding, used to center the map when we
   // have no location fix. Null only if the profile predates that field.
@@ -177,8 +196,9 @@ export function MapScreen(): React.JSX.Element {
       );
       setPendingId(null);
     } else {
-      // Not loaded yet — pull fresh data, the effect re-runs when stashes change.
-      refreshStashes();
+      // Not loaded yet — pull fresh data (bypass the staleness guard so a
+      // deep-linked pin always resolves); the effect re-runs when stashes change.
+      refreshStashes({force: true});
     }
   }, [pendingId, stashes]);
 
@@ -242,7 +262,7 @@ export function MapScreen(): React.JSX.Element {
   return (
     <View style={styles.container}>
       {initialRegion ? (
-        <MapView
+        <ClusteredMap
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={StyleSheet.absoluteFill}
@@ -250,11 +270,15 @@ export function MapScreen(): React.JSX.Element {
           initialRegion={initialRegion}
           showsUserLocation
           showsMyLocationButton={false}
-          toolbarEnabled={false}>
+          toolbarEnabled={false}
+          minPoints={2}
+          clusterColor={colors.primary}
+          clusterTextColor={colors.onPrimary}>
           {stashes.map(stash => (
             <StashPin
               key={stash.id}
               stash={stash}
+              coordinate={{latitude: stash.lat, longitude: stash.lng}}
               onPress={setSelected}
               friendCount={overlaps[stash.id]?.length ?? 0}
               visitedPulseKey={
@@ -262,7 +286,7 @@ export function MapScreen(): React.JSX.Element {
               }
             />
           ))}
-        </MapView>
+        </ClusteredMap>
       ) : (
         <View style={styles.locating}>
           <ActivityIndicator color={colors.primary} />

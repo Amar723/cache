@@ -1,14 +1,7 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {
-  Animated,
-  Easing,
-  Image,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import {Animated, Easing, Platform, StyleSheet, Text, View} from 'react-native';
 import {Marker} from 'react-native-maps';
+import FastImage from '@d11/react-native-fast-image';
 
 import {
   fonts,
@@ -23,6 +16,12 @@ import type {Stash} from '../types';
 
 interface StashPinProps {
   stash: Stash;
+  /**
+   * The pin's map coordinate. Passed in explicitly (rather than derived from the
+   * stash inside) because the clustering wrapper inspects each child's
+   * `coordinate` prop to decide what to cluster.
+   */
+  coordinate: {latitude: number; longitude: number};
   onPress: (stash: Stash) => void;
   /** How many friends have also saved this place (0 = none). */
   friendCount?: number;
@@ -40,8 +39,9 @@ interface StashPinProps {
  * blank if we disable it before the thumbnail finishes loading. We therefore
  * track changes until the image has loaded (or failed), then turn it off.
  */
-export function StashPin({
+function StashPinComponent({
   stash,
+  coordinate,
   onPress,
   friendCount = 0,
   visitedPulseKey = 0,
@@ -113,7 +113,7 @@ export function StashPin({
 
   return (
     <Marker
-      coordinate={{latitude: stash.lat, longitude: stash.lng}}
+      coordinate={coordinate}
       onPress={() => onPress(stash)}
       tracksViewChanges={
         // A friend badge changes the rendered marker, so keep tracking until the
@@ -150,9 +150,10 @@ export function StashPin({
           )}
           <View style={[styles.thumbWrap, visited && styles.thumbWrapVisited]}>
             {uri ? (
-              <Image
-                source={{uri}}
+              <FastImage
+                source={{uri, cache: FastImage.cacheControl.immutable}}
                 style={styles.thumb}
+                resizeMode={FastImage.resizeMode.cover}
                 onLoadEnd={() => setImageSettled(true)}
                 onError={onError}
               />
@@ -178,6 +179,31 @@ export function StashPin({
     </Marker>
   );
 }
+
+/**
+ * The map re-renders on unrelated state (selection, GPS ticks, the overlap map
+ * rebuilding), so without this every pin would re-render — and a custom-view
+ * Marker re-render forces a native bitmap re-rasterization. Only re-render a pin
+ * when a field it actually draws changes.
+ */
+function arePinPropsEqual(prev: StashPinProps, next: StashPinProps): boolean {
+  const a = prev.stash;
+  const b = next.stash;
+  return (
+    a.id === b.id &&
+    a.place_name === b.place_name &&
+    a.visited_at === b.visited_at &&
+    a.thumbnail_url === b.thumbnail_url &&
+    a.category === b.category &&
+    a.lat === b.lat &&
+    a.lng === b.lng &&
+    prev.friendCount === next.friendCount &&
+    prev.visitedPulseKey === next.visitedPulseKey &&
+    prev.onPress === next.onPress
+  );
+}
+
+export const StashPin = React.memo(StashPinComponent, arePinPropsEqual);
 
 function createStyles(c: AppColors) {
   return StyleSheet.create({

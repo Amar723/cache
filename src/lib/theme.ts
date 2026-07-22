@@ -494,7 +494,9 @@ export function CacheThemeProvider({
   // We still read the OS scheme so the wiring stays live, but ignore it while
   // dark mode is disabled so the app always resolves to the light theme.
   const systemScheme = resolveScheme(useColorScheme());
-  const colorScheme: AppColorScheme = DARK_MODE_ENABLED ? systemScheme : 'light';
+  const colorScheme: AppColorScheme = DARK_MODE_ENABLED
+    ? systemScheme
+    : 'light';
 
   const value = useMemo<AppTheme>(() => {
     const isDark = colorScheme === 'dark';

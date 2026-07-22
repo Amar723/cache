@@ -1,12 +1,12 @@
 import React, {useCallback, useMemo, useState} from 'react';
 import {
   FlatList,
-  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
+import FastImage from '@d11/react-native-fast-image';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 
@@ -22,7 +22,7 @@ import {haversineMeters} from '../lib/distance';
 import {refreshStashes, useStashes, useThumbnailUri} from '../hooks/useStashes';
 import {useLocation} from '../hooks/useLocation';
 import {navigationRef} from '../navigation/navigationRef';
-import {useTabBarVisibility} from '../navigation/tabBarVisibility';
+import {useSetTabBarVisible} from '../navigation/tabBarVisibility';
 import {StashBottomSheet} from '../components/StashBottomSheet';
 import {AppText} from '../components/Themed';
 import {CATEGORY_ICON, Icon} from '../components/Icon';
@@ -33,6 +33,11 @@ type SortMode = 'closest' | 'recent';
 
 /** A stash paired with its distance from the user (null when unknown). */
 type StashRowItem = {stash: Stash; distance: number | null};
+
+// Snap the user's location to a ~55 m grid before it drives the list. The GPS
+// watcher reports every 25 m; unrounded, each report would recompute every
+// row's distance, re-sort, and re-render the whole list.
+const SORT_GRID = 0.0005;
 
 /**
  * The list view of every saved place. Tapping a row opens the very same sheet
@@ -46,7 +51,7 @@ export function SavedScreen(): React.JSX.Element {
   );
   const {stashes, loading} = useStashes();
   const {location} = useLocation();
-  const {setVisible: setTabBarVisible} = useTabBarVisibility();
+  const setTabBarVisible = useSetTabBarVisible();
   const [tab, setTab] = useState<Tab>('all');
   const [sort, setSort] = useState<SortMode>('closest');
   const [selected, setSelected] = useState<Stash | null>(null);
@@ -70,24 +75,50 @@ export function SavedScreen(): React.JSX.Element {
     [setTabBarVisible],
   );
 
+  // Feeding rounded *primitives* (not the location object) as memo deps means
+  // small movements within a grid cell don't invalidate the list at all.
+  const roundedLat =
+    location != null ? Math.round(location.lat / SORT_GRID) * SORT_GRID : null;
+  const roundedLng =
+    location != null ? Math.round(location.lng / SORT_GRID) * SORT_GRID : null;
+
   // The store arrives newest-first (created_at desc). We filter by tab, attach a
   // distance to each row, then sort by distance when "Closest" is picked and a
   // location is known — otherwise we keep the newest-first order (this is both
   // the "Recent" view and the graceful fallback when location is unavailable).
   const data = useMemo<StashRowItem[]>(() => {
+    const loc =
+      roundedLat != null && roundedLng != null
+        ? {lat: roundedLat, lng: roundedLng}
+        : null;
     const filtered =
       tab === 'visited' ? stashes.filter(s => s.visited_at != null) : stashes;
     const items = filtered.map(stash => ({
       stash,
-      distance: location
-        ? haversineMeters(location, {lat: stash.lat, lng: stash.lng})
+      distance: loc
+        ? haversineMeters(loc, {lat: stash.lat, lng: stash.lng})
         : null,
     }));
-    if (sort === 'closest' && location) {
+    if (sort === 'closest' && loc) {
       items.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
     }
     return items;
-  }, [stashes, tab, sort, location]);
+  }, [stashes, tab, sort, roundedLat, roundedLng]);
+
+  // Stable identities so the memoized FlatList / rows don't re-render needlessly.
+  const handleSelect = useCallback((stash: Stash) => setSelected(stash), []);
+  const handleRefresh = useCallback(() => refreshStashes({force: true}), []);
+  const keyExtractor = useCallback((item: StashRowItem) => item.stash.id, []);
+  const renderItem = useCallback(
+    ({item}: {item: StashRowItem}) => (
+      <StashRow
+        stash={item.stash}
+        distance={item.distance}
+        onPress={handleSelect}
+      />
+    ),
+    [handleSelect],
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -126,19 +157,17 @@ export function SavedScreen(): React.JSX.Element {
 
       <FlatList
         data={data}
-        keyExtractor={item => item.stash.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.list}
-        renderItem={({item}) => (
-          <StashRow
-            stash={item.stash}
-            distance={item.distance}
-            onPress={() => setSelected(item.stash)}
-          />
-        )}
+        renderItem={renderItem}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
         refreshControl={
           <RefreshControl
             refreshing={loading}
-            onRefresh={refreshStashes}
+            onRefresh={handleRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
           />
@@ -249,14 +278,14 @@ function SortToggle({
   );
 }
 
-function StashRow({
+const StashRow = React.memo(function StashRow({
   stash,
   distance,
   onPress,
 }: {
   stash: Stash;
   distance: number | null;
-  onPress: () => void;
+  onPress: (stash: Stash) => void;
 }): React.JSX.Element {
   const {colors, elevation} = useAppTheme();
   const styles = useMemo(
@@ -274,12 +303,17 @@ function StashRow({
     .join('  ·  ');
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress(stash)}
       style={({pressed}) => [styles.row, pressed && styles.rowPressed]}
       accessibilityRole="button">
       <View style={styles.thumbWrap}>
         {uri ? (
-          <Image source={{uri}} style={styles.thumb} onError={onError} />
+          <FastImage
+            source={{uri, cache: FastImage.cacheControl.immutable}}
+            style={styles.thumb}
+            resizeMode={FastImage.resizeMode.cover}
+            onError={onError}
+          />
         ) : (
           <View style={[styles.thumb, styles.thumbFallback]}>
             <Icon
@@ -317,7 +351,7 @@ function StashRow({
       </View>
     </Pressable>
   );
-}
+});
 
 function createStyles(c: AppColors, appElevation: AppTheme['elevation']) {
   return StyleSheet.create({

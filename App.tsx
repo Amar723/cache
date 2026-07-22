@@ -1,5 +1,10 @@
 import React, {useEffect} from 'react';
-import {AppState, StatusBar, StyleSheet} from 'react-native';
+import {
+  AppState,
+  InteractionManager,
+  StatusBar,
+  StyleSheet,
+} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import BackgroundFetch from 'react-native-background-fetch';
@@ -75,11 +80,15 @@ function AppShell(): React.JSX.Element {
   useEffect(() => {
     if (status === 'ready') {
       primeLocation();
-      // Load my pins + friends, then check for places we've both saved.
-      Promise.all([refreshStashes(), refreshFriends()]).then(() =>
-        reconcileFriendOverlaps(),
-      );
-      registerPushToken();
+      // The map needs pins + friends, so fetch those on the critical path.
+      const loaded = Promise.all([refreshStashes(), refreshFriends()]);
+      // Defer the overlap reconcile (a third query) and push-token registration
+      // (an FCM getToken round-trip) until after the first interactions settle,
+      // so they don't compete with the map's first paint.
+      InteractionManager.runAfterInteractions(() => {
+        loaded.then(() => reconcileFriendOverlaps());
+        registerPushToken();
+      });
     } else if (status === 'signedOut') {
       clearStashes();
       clearFriends();

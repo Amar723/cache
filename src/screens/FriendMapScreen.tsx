@@ -5,6 +5,7 @@ import MapView, {
   PROVIDER_GOOGLE,
   type Region,
 } from 'react-native-maps';
+import ClusteredMapView from 'react-native-map-clustering';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 
@@ -41,6 +42,19 @@ function regionFor(point: {lat: number; lng: number}, delta = 0.05): Region {
     longitudeDelta: delta,
   };
 }
+
+// See MapScreen: re-type the clustering wrapper (bundled types model it as a
+// bare class) so it accepts MapView props plus the clustering options we set.
+type ClusterOptions = {
+  clusteringEnabled?: boolean;
+  radius?: number;
+  minPoints?: number;
+  clusterColor?: string;
+  clusterTextColor?: string;
+};
+const ClusteredMap = ClusteredMapView as unknown as React.ComponentType<
+  React.ComponentProps<typeof MapView> & ClusterOptions
+>;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FriendMap'>;
 
@@ -105,18 +119,26 @@ export function FriendMapScreen({route, navigation}: Props): React.JSX.Element {
   return (
     <View style={styles.container}>
       {initialRegion ? (
-        <MapView
+        <ClusteredMap
           provider={PROVIDER_GOOGLE}
           style={StyleSheet.absoluteFill}
           customMapStyle={mapStyle as unknown as MapStyleElement[]}
           initialRegion={initialRegion}
           showsUserLocation
           showsMyLocationButton={false}
-          toolbarEnabled={false}>
+          toolbarEnabled={false}
+          minPoints={2}
+          clusterColor={colors.primary}
+          clusterTextColor={colors.onPrimary}>
           {stashes.map(stash => (
-            <StashPin key={stash.id} stash={stash} onPress={setSelected} />
+            <StashPin
+              key={stash.id}
+              stash={stash}
+              coordinate={{latitude: stash.lat, longitude: stash.lng}}
+              onPress={setSelected}
+            />
           ))}
-        </MapView>
+        </ClusteredMap>
       ) : (
         <View style={styles.locating}>
           <ActivityIndicator color={colors.primary} />

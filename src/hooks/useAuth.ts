@@ -3,6 +3,11 @@ import type {Session} from '@supabase/supabase-js';
 import {supabase} from '../lib/supabase';
 import {createStore} from '../lib/store';
 import {persistSharedSession} from '../lib/sharedSession';
+import {
+  clearCachedProfile,
+  loadCachedProfile,
+  saveCachedProfile,
+} from '../lib/authCache';
 import {uploadAvatar, type AvatarUpload} from '../lib/storage';
 import type {ProfileInsert} from '../lib/database.types';
 import type {Profile} from '../types';
@@ -61,21 +66,33 @@ async function applySession(session: Session | null): Promise<void> {
   persistSharedSession(session);
 
   if (!session) {
+    clearCachedProfile();
     store.setState({status: 'signedOut', session: null, profile: null});
     return;
   }
 
   try {
     const profile = await fetchProfile(session.user.id);
+    if (profile) {
+      saveCachedProfile(session.user.id, profile);
+    }
     store.setState({
       session,
       profile,
       status: profile ? 'ready' : 'needsOnboarding',
     });
   } catch {
-    // If the profile lookup fails (offline), keep the session but treat the
-    // user as needing onboarding so they aren't stranded on a blank screen.
-    store.setState({session, profile: null, status: 'needsOnboarding'});
+    // If the profile lookup fails (offline), keep whatever profile we already
+    // have — a returning user restored from cache stays `ready` rather than
+    // being bounced to onboarding by a flaky network. Only a user we have
+    // never resolved a profile for is treated as needing onboarding, so they
+    // aren't stranded on a blank screen.
+    const existing = store.getState().profile;
+    store.setState(
+      existing
+        ? {session, profile: existing, status: 'ready'}
+        : {session, profile: null, status: 'needsOnboarding'},
+    );
   }
 }
 
@@ -88,13 +105,35 @@ export async function initAuth(): Promise<void> {
   }
   initialised = true;
 
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange((event, session) => {
+    // The initial session is handled by the awaited `getSession()` below;
+    // acting on INITIAL_SESSION here too would fetch the profile a second time
+    // on every cold start. Only respond to genuine live changes.
+    if (event === 'INITIAL_SESSION') {
+      return;
+    }
     applySession(session);
   });
 
   const {
     data: {session},
   } = await supabase.auth.getSession();
+
+  // Fast path: with a live session and a profile cached from a prior run, render
+  // the app immediately from cache and revalidate in the background — the splash
+  // no longer waits on a `profiles` round-trip. Cold installs / signed-out users
+  // fall through to the awaited path below.
+  if (session) {
+    const cached = await loadCachedProfile(session.user.id);
+    if (cached) {
+      persistSharedSession(session);
+      store.setState({session, profile: cached, status: 'ready'});
+      // Revalidate in the background; do not block the first render on it.
+      applySession(session);
+      return;
+    }
+  }
+
   await applySession(session);
 }
 
@@ -325,6 +364,7 @@ export async function completeOnboarding(
     throw new Error(error.message);
   }
 
+  saveCachedProfile(userId, data as Profile);
   store.setState({profile: data as Profile, status: 'ready'});
 }
 
@@ -376,6 +416,7 @@ export async function updateProfile(input: ProfileUpdate): Promise<void> {
   }
 
   // The user is already `ready`; only the profile itself changed.
+  saveCachedProfile(userId, data as Profile);
   store.setState({profile: data as Profile});
 }
 
@@ -386,6 +427,9 @@ export async function refreshProfile(): Promise<void> {
     return;
   }
   const profile = await fetchProfile(session.user.id);
+  if (profile) {
+    saveCachedProfile(session.user.id, profile);
+  }
   store.setState({profile, status: profile ? 'ready' : 'needsOnboarding'});
 }
 

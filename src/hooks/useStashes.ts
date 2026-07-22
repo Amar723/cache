@@ -29,15 +29,43 @@ const store = createStore<StashState>({
   error: null,
 });
 
-/** Fetch all of the current user's stashes, newest first. */
-export async function refreshStashes(): Promise<void> {
+// Staleness guard so that switching tabs back to the Map/Saved screens (each of
+// which refetches on focus) doesn't re-pull the whole table — and re-render
+// every pin — several times a second. Kept as module state so reading it never
+// triggers a render. Reset on sign-out / user change.
+const STALE_MS = 30_000;
+let lastFetchedAt = 0;
+let lastFetchedUserId: string | null = null;
+
+/**
+ * Fetch all of the current user's stashes, newest first. No-ops when the last
+ * fetch is still fresh (under {@link STALE_MS}); pass `{force: true}` to bypass
+ * the guard (pull-to-refresh, deep-link resolution).
+ */
+export async function refreshStashes(options?: {
+  force?: boolean;
+}): Promise<void> {
   const userId = currentUserId();
   if (!userId) {
+    lastFetchedAt = 0;
+    lastFetchedUserId = null;
     store.setState({stashes: [], loading: false});
     return;
   }
 
-  store.setState({loading: true, error: null});
+  const fresh =
+    !options?.force &&
+    userId === lastFetchedUserId &&
+    Date.now() - lastFetchedAt < STALE_MS;
+  if (fresh) {
+    return;
+  }
+
+  // Only surface the loading state on a cold fetch — a background refresh of an
+  // already-populated list must not blank it or re-render every pin/row.
+  if (store.getState().stashes.length === 0) {
+    store.setState({loading: true, error: null});
+  }
 
   const {data, error} = await supabase
     .from('stashes')
@@ -50,11 +78,15 @@ export async function refreshStashes(): Promise<void> {
     return;
   }
 
+  lastFetchedAt = Date.now();
+  lastFetchedUserId = userId;
   store.setState({stashes: (data as Stash[]) ?? [], loading: false});
 }
 
 /** Clear local state on sign-out. */
 export function clearStashes(): void {
+  lastFetchedAt = 0;
+  lastFetchedUserId = null;
   store.setState({stashes: [], loading: false, error: null});
 }
 

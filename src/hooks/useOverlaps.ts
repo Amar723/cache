@@ -53,26 +53,74 @@ interface OverlapState {
 const store = createStore<OverlapState>({byStashId: {}, pendingAlert: null});
 
 let inFlight = false;
+// Rate-limit: this runs on every app foreground and every map focus. Without a
+// guard, quick app switches fire a fresh friend-pin query each time. Reset on
+// sign-out.
+const RECONCILE_STALE_MS = 15_000;
+let lastReconciledAt = 0;
+
+/** Structural equality over overlap maps (same stash ids → same friend ids). */
+function sameOverlapMap(
+  a: Record<string, Profile[]>,
+  b: Record<string, Profile[]>,
+): boolean {
+  const aKeys = Object.keys(a);
+  if (aKeys.length !== Object.keys(b).length) {
+    return false;
+  }
+  for (const key of aKeys) {
+    const av = a[key];
+    const bv = b[key];
+    if (!bv || av.length !== bv.length) {
+      return false;
+    }
+    for (let i = 0; i < av.length; i++) {
+      if (av[i].id !== bv[i].id) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Replace the overlap map only when it actually changed. `computeOverlaps`
+ * returns a fresh object every run, so committing it unconditionally re-renders
+ * the map screen — and every pin reads a new `friendCount` reference — even when
+ * nothing about the overlaps changed.
+ */
+function setOverlapMap(byStashId: Record<string, Profile[]>): void {
+  if (sameOverlapMap(store.getState().byStashId, byStashId)) {
+    return;
+  }
+  store.setState({byStashId});
+}
 
 /**
  * Recompute overlaps against the latest friend pins and alert about any newly
  * discovered ones. Cheap to call often (guards against concurrent runs); safe
  * to call when signed out or with no friends — it just clears the overlap set.
  */
-export async function reconcileFriendOverlaps(): Promise<void> {
+export async function reconcileFriendOverlaps(options?: {
+  force?: boolean;
+}): Promise<void> {
   const myId = currentUserId();
   if (!myId || inFlight) {
     if (!myId) {
-      store.setState({byStashId: {}});
+      setOverlapMap({});
     }
     return;
   }
+  if (!options?.force && Date.now() - lastReconciledAt < RECONCILE_STALE_MS) {
+    return;
+  }
   inFlight = true;
+  lastReconciledAt = Date.now();
   try {
     const mine = getStashesSnapshot();
     const friends = getAcceptedFriends();
     if (mine.length === 0 || friends.length === 0) {
-      store.setState({byStashId: {}});
+      setOverlapMap({});
       return;
     }
 
@@ -92,7 +140,7 @@ export async function reconcileFriendOverlaps(): Promise<void> {
       (data as FriendStashRow[]) ?? [],
       profileById,
     );
-    store.setState({byStashId});
+    setOverlapMap(byStashId);
     await queueNewOverlapAlert(byStashId, mine);
   } finally {
     inFlight = false;
@@ -169,6 +217,7 @@ function overlapMessage(
 
 /** Reset on sign-out. */
 export function clearOverlaps(): void {
+  lastReconciledAt = 0;
   store.setState({byStashId: {}, pendingAlert: null});
 }
 

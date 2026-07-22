@@ -1,12 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {
-  Alert,
-  Animated,
-  Image,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
+import {Alert, Animated, Pressable, StyleSheet, View} from 'react-native';
+import FastImage from '@d11/react-native-fast-image';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetScrollView,
@@ -288,10 +282,13 @@ export function StashBottomSheet({
                 onPress={() => openVideo(activeStash.video_url)}
                 style={styles.thumbWrap}>
                 {thumbUri ? (
-                  <Image
-                    source={{uri: thumbUri}}
+                  <FastImage
+                    source={{
+                      uri: thumbUri,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
                     style={styles.thumb}
-                    resizeMode="cover"
+                    resizeMode={FastImage.resizeMode.cover}
                     onError={handleThumbError}
                   />
                 ) : (
@@ -479,7 +476,14 @@ function FriendAvatar({
   return (
     <View style={[styles.avatar, overlap && styles.avatarOverlap]}>
       {profile.avatar_url ? (
-        <Image source={{uri: profile.avatar_url}} style={styles.avatarImage} />
+        <FastImage
+          source={{
+            uri: profile.avatar_url,
+            cache: FastImage.cacheControl.immutable,
+          }}
+          style={styles.avatarImage}
+          resizeMode={FastImage.resizeMode.cover}
+        />
       ) : (
         <AppText variant="bold" style={styles.avatarInitial}>
           {initial}

@@ -1,7 +1,6 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import FastImage from '@d11/react-native-fast-image';
 import {
   GooglePlacesAutocomplete,
   type GooglePlaceData,
@@ -299,10 +299,10 @@ export function AddStashForm({
       {thumbLoading ? (
         <ActivityIndicator color={colors.primary} />
       ) : thumbnailUrl ? (
-        <Image
-          source={{uri: thumbnailUrl}}
+        <FastImage
+          source={{uri: thumbnailUrl, cache: FastImage.cacheControl.immutable}}
           style={styles.previewImage}
-          resizeMode="cover"
+          resizeMode={FastImage.resizeMode.cover}
         />
       ) : (
         <View style={styles.previewFallback}>

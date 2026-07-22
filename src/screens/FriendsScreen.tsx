@@ -67,21 +67,37 @@ export function FriendsScreen(): React.JSX.Element {
     return () => clearTimeout(handle);
   }, [query, searchUsers]);
 
+  // Precompute id sets once per graph change so the per-result relationship
+  // lookup below is O(1) instead of three linear scans per search result.
+  const friendIds = useMemo(
+    () => new Set(friends.map(f => f.profile.id)),
+    [friends],
+  );
+  const outgoingIds = useMemo(
+    () => new Set(outgoing.map(r => r.profile.id)),
+    [outgoing],
+  );
+  const incomingIds = useMemo(
+    () => new Set(incoming.map(r => r.profile.id)),
+    [incoming],
+  );
+
   /** What relationship, if any, the viewer already has with a searched user. */
-  const relationOf = (
-    userId: string,
-  ): 'friend' | 'outgoing' | 'incoming' | null => {
-    if (friends.some(f => f.profile.id === userId)) {
-      return 'friend';
-    }
-    if (outgoing.some(r => r.profile.id === userId)) {
-      return 'outgoing';
-    }
-    if (incoming.some(r => r.profile.id === userId)) {
-      return 'incoming';
-    }
-    return null;
-  };
+  const relationOf = useCallback(
+    (userId: string): 'friend' | 'outgoing' | 'incoming' | null => {
+      if (friendIds.has(userId)) {
+        return 'friend';
+      }
+      if (outgoingIds.has(userId)) {
+        return 'outgoing';
+      }
+      if (incomingIds.has(userId)) {
+        return 'incoming';
+      }
+      return null;
+    },
+    [friendIds, outgoingIds, incomingIds],
+  );
 
   const openFriendProfile = (profile: Profile) =>
     navigation.navigate('FriendProfile', {friendId: profile.id});

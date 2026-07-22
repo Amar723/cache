@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -84,13 +84,31 @@ interface AppTextProps extends TextProps {
   variant?: TextVariant;
 }
 
+// `AppText` is the most-rendered component in the app; recomputing its full
+// variant-style map on every render (dozens per screen) is a constant, needless
+// allocation. The theme `colors` object is stable, so cache one style map per
+// palette and reuse it across every instance.
+const variantStyleCache = new WeakMap<
+  AppColors,
+  Record<TextVariant, TextStyle>
+>();
+
+function getVariantStyles(c: AppColors): Record<TextVariant, TextStyle> {
+  let cached = variantStyleCache.get(c);
+  if (!cached) {
+    cached = variantStyles(c);
+    variantStyleCache.set(c, cached);
+  }
+  return cached;
+}
+
 export function AppText({
   variant = 'body',
   style,
   ...rest
 }: AppTextProps): React.JSX.Element {
   const {colors} = useAppTheme();
-  return <Text {...rest} style={[variantStyles(colors)[variant], style]} />;
+  return <Text {...rest} style={[getVariantStyles(colors)[variant], style]} />;
 }
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger';
@@ -115,18 +133,20 @@ export function PrimaryButton({
   const {colors} = useAppTheme();
   const isDisabled = disabled || loading;
 
-  const palette: Record<
-    ButtonVariant,
-    {bg: string; fg: string; border: string}
-  > = {
-    primary: {bg: colors.primary, fg: colors.onPrimary, border: colors.primary},
-    secondary: {
-      bg: colors.surface,
-      fg: colors.text,
-      border: colors.border,
-    },
-    danger: {bg: colors.surface, fg: colors.danger, border: colors.danger},
-  };
+  const palette = useMemo<
+    Record<ButtonVariant, {bg: string; fg: string; border: string}>
+  >(
+    () => ({
+      primary: {
+        bg: colors.primary,
+        fg: colors.onPrimary,
+        border: colors.primary,
+      },
+      secondary: {bg: colors.surface, fg: colors.text, border: colors.border},
+      danger: {bg: colors.surface, fg: colors.danger, border: colors.danger},
+    }),
+    [colors],
+  );
 
   const p = palette[variant];
 

@@ -77,11 +77,31 @@ export function partitionFriendships(
   return {friends, incoming, outgoing};
 }
 
-/** Load every relationship the current user is part of. */
-export async function refreshFriends(): Promise<void> {
+// Staleness guard so tab-focus refetches don't re-pull the whole friend graph
+// several times as the user moves between screens. Reset on sign-out.
+const FRIENDS_STALE_MS = 30_000;
+let friendsFetchedAt = 0;
+let friendsFetchedUserId: string | null = null;
+
+/**
+ * Load every relationship the current user is part of. No-ops when the last
+ * fetch is still fresh; pass `{force: true}` after a mutation (send/accept/
+ * remove) to guarantee the change is reflected.
+ */
+export async function refreshFriends(options?: {
+  force?: boolean;
+}): Promise<void> {
   const myId = currentUserId();
   if (!myId) {
     clearFriends();
+    return;
+  }
+
+  const fresh =
+    !options?.force &&
+    myId === friendsFetchedUserId &&
+    Date.now() - friendsFetchedAt < FRIENDS_STALE_MS;
+  if (fresh) {
     return;
   }
 
@@ -101,11 +121,15 @@ export async function refreshFriends(): Promise<void> {
     (data as unknown as FriendshipJoinRow[]) ?? [],
     myId,
   );
+  friendsFetchedAt = Date.now();
+  friendsFetchedUserId = myId;
   store.setState({...parts, loading: false});
 }
 
 /** Reset on sign-out. */
 export function clearFriends(): void {
+  friendsFetchedAt = 0;
+  friendsFetchedUserId = null;
   store.setState({
     friends: [],
     incoming: [],
@@ -154,7 +178,7 @@ export async function sendRequest(addresseeId: string): Promise<void> {
     }
     throw new Error(error.message);
   }
-  await refreshFriends();
+  await refreshFriends({force: true});
 }
 
 /** Accept an incoming request. */
@@ -178,7 +202,7 @@ async function updateStatus(
   if (error) {
     throw new Error(error.message);
   }
-  await refreshFriends();
+  await refreshFriends({force: true});
 }
 
 /** Remove a friend or cancel an outgoing request (deletes the row). */
@@ -190,7 +214,7 @@ export async function removeFriend(friendshipId: string): Promise<void> {
   if (error) {
     throw new Error(error.message);
   }
-  await refreshFriends();
+  await refreshFriends({force: true});
 }
 
 /** React hook: the full friend graph + actions. */

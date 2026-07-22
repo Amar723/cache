@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef} from 'react';
 import {Animated, Platform, StyleSheet} from 'react-native';
 import {
   BottomTabBar,
@@ -20,10 +20,7 @@ import {FriendsScreen} from '../screens/FriendsScreen';
 import {ProfileScreen} from '../screens/ProfileScreen';
 import {useIncomingRequestCount} from '../hooks/useFriends';
 import {Icon, type IconName} from '../components/Icon';
-import {
-  TabBarVisibilityProvider,
-  useTabBarVisibility,
-} from './tabBarVisibility';
+import {TabBarVisibilityProvider, useTabBarVisible} from './tabBarVisibility';
 import type {TabParamList} from '../types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -56,7 +53,7 @@ function TabBarIcon({
 }
 
 function FloatingTabBar(props: BottomTabBarProps): React.JSX.Element {
-  const {visible} = useTabBarVisibility();
+  const visible = useTabBarVisible();
   const {colors, elevation} = useAppTheme();
   const styles = useMemo(
     () => createStyles(colors, elevation),
@@ -104,16 +101,18 @@ export function TabNavigator(): React.JSX.Element {
     () => createStyles(colors, elevation),
     [colors, elevation],
   );
-  const [tabBarVisible, setTabBarVisible] = useState(true);
-  const tabBarVisibility = useMemo(
-    () => ({visible: tabBarVisible, setVisible: setTabBarVisible}),
-    [tabBarVisible],
+  // Stable identity so a TabNavigator re-render (badge count / theme) doesn't
+  // hand Tab.Navigator a fresh tabBar prop. Visibility lives in the provider now,
+  // so toggling a sheet no longer re-renders this component at all.
+  const renderTabBar = useCallback(
+    (props: BottomTabBarProps) => <FloatingTabBar {...props} />,
+    [],
   );
 
   return (
-    <TabBarVisibilityProvider value={tabBarVisibility}>
+    <TabBarVisibilityProvider>
       <Tab.Navigator
-        tabBar={props => <FloatingTabBar {...props} />}
+        tabBar={renderTabBar}
         screenOptions={({route}) => ({
           headerShown: false,
           tabBarShowLabel: true,

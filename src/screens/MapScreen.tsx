@@ -271,9 +271,7 @@ export function MapScreen(): React.JSX.Element {
           showsUserLocation
           showsMyLocationButton={false}
           toolbarEnabled={false}
-          minPoints={2}
-          clusterColor={colors.primary}
-          clusterTextColor={colors.onPrimary}>
+          clusteringEnabled={false}>
           {stashes.map(stash => (
             <StashPin
               key={stash.id}

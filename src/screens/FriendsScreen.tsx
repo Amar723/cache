@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -123,7 +124,24 @@ export function FriendsScreen(): React.JSX.Element {
             autoCorrect={false}
             style={styles.searchInput}
           />
-          {searching ? <ActivityIndicator color={colors.primary} /> : null}
+          {searching ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : query.length > 0 ? (
+            <Pressable
+              onPress={() => {
+                setQuery('');
+                Keyboard.dismiss();
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+              style={({pressed}) => [
+                styles.clearButton,
+                pressed && styles.actionPressed,
+              ]}>
+              <Icon name="close" size={18} color={colors.textMuted} />
+            </Pressable>
+          ) : null}
         </View>
 
         {query.trim().length >= 2 ? (
@@ -342,6 +360,9 @@ function createStyles(c: AppColors) {
       paddingVertical: spacing.md,
       color: c.text,
       fontSize: 15,
+    },
+    clearButton: {
+      padding: spacing.xs,
     },
     section: {
       marginBottom: spacing.xl,

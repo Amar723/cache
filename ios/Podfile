@@ -48,5 +48,16 @@ target 'Cache' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Fixes the "archive did not include a dSYM for hermes.framework" upload
+    # warning by forcing Hermes to emit a dSYM (dwarf-with-dsym) so Xcode has
+    # symbols to bundle into the archive.
+    installer.pods_project.targets.each do |target|
+      if target.name == 'hermes-engine'
+        target.build_configurations.each do |config|
+          config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+        end
+      end
+    end
   end
 end
